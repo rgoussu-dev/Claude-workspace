@@ -8,7 +8,7 @@ $cmd = $json.tool_input.command
 if (-not $cmd) { exit 0 }
 if ($cmd -notmatch '(^|&&|;)\s*git\s+commit') { exit 0 }
 
-function Fail($msg) { [Console]::Error.WriteLine($msg); exit 2 }
+function Fail($msg) { [Console]::Error.WriteLine($msg); exit 1 }
 
 if (Test-Path './gradlew.bat') {
   & ./gradlew.bat --quiet check | Out-Null

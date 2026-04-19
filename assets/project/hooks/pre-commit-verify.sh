@@ -14,7 +14,7 @@ case "$CMD" in
   *) exit 0 ;;
 esac
 
-fail() { printf '%s\n' "$1" >&2; exit 2; }
+fail() { printf '%s\n' "$1" >&2; exit 1; }
 
 # Gradle / JVM projects
 if [ -x "./gradlew" ]; then
