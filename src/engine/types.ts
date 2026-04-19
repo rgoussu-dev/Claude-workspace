@@ -15,8 +15,14 @@ import type { Logger } from '../util/log.js';
 export interface Tree {
   /** Returns the content of a file in the tree, or `null` if absent. */
   read(filePath: string): Buffer | null;
-  /** Writes (or overwrites) a file in the tree. */
-  write(filePath: string, content: Buffer | string): void;
+  /**
+   * Writes (or overwrites) a file in the tree. The optional `mode` is
+   * propagated to disk on `commit`; omit it to preserve any prior mode
+   * bits on the target file, or to let the platform default apply on
+   * create. Mode is required to round-trip executable template files such
+   * as `gradlew`.
+   */
+  write(filePath: string, content: Buffer | string, options?: { mode?: number }): void;
   /** Deletes a file from the tree. No-op if absent. */
   delete(filePath: string): void;
   /** Reports whether the given file exists in the tree. */
