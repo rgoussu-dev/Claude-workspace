@@ -1,0 +1,82 @@
+{
+  "$schema": "./languages.schema.json",
+  "version": "1.0.0",
+  "languages": {
+    "java": {
+      "extensions": [".java"],
+      "markers": ["pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle.kts"],
+      "docComment": { "style": "block", "prefix": "/**", "suffix": "*/", "name": "JavaDoc" },
+      "formatter": { "command": "./gradlew", "args": ["spotlessApply"], "scoped": false },
+      "formatterCheck": { "command": "./gradlew", "args": ["spotlessCheck"] },
+      "linter": { "command": "./gradlew", "args": ["compileJava"] },
+      "typecheck": { "command": "./gradlew", "args": ["compileJava"] },
+      "test": { "command": "./gradlew", "args": ["test"] },
+      "testScoped": { "command": "./gradlew", "args": ["test", "--tests"] },
+      "mutation": { "command": "./gradlew", "args": ["pitest"] },
+      "archCheck": { "command": "./gradlew", "args": ["archTest"] },
+      "buildTool": "gradle",
+      "resultType": "sealed interface Result<T>",
+      "nullSafety": "JSpecify + NullAway"
+    },
+    "kotlin": {
+      "extensions": [".kt", ".kts"],
+      "markers": ["build.gradle.kts", "settings.gradle.kts"],
+      "docComment": { "style": "block", "prefix": "/**", "suffix": "*/", "name": "KDoc" },
+      "formatter": { "command": "./gradlew", "args": ["spotlessApply"] },
+      "formatterCheck": { "command": "./gradlew", "args": ["spotlessCheck"] },
+      "linter": { "command": "./gradlew", "args": ["detekt"] },
+      "typecheck": { "command": "./gradlew", "args": ["compileKotlin"] },
+      "test": { "command": "./gradlew", "args": ["test"] },
+      "mutation": { "command": "./gradlew", "args": ["pitest"] },
+      "archCheck": { "command": "./gradlew", "args": ["archTest"] },
+      "buildTool": "gradle",
+      "resultType": "sealed interface Result<T>",
+      "nullSafety": "non-null by default"
+    },
+    "typescript": {
+      "extensions": [".ts", ".tsx"],
+      "markers": ["tsconfig.json", "package.json"],
+      "docComment": { "style": "block", "prefix": "/**", "suffix": "*/", "name": "TSDoc" },
+      "formatter": { "command": "pnpm", "args": ["exec", "prettier", "--write"] },
+      "formatterCheck": { "command": "pnpm", "args": ["exec", "prettier", "--check"] },
+      "linter": { "command": "pnpm", "args": ["exec", "eslint"] },
+      "typecheck": { "command": "pnpm", "args": ["exec", "tsc", "--noEmit"] },
+      "test": { "command": "pnpm", "args": ["exec", "vitest", "run"] },
+      "testScoped": { "command": "pnpm", "args": ["exec", "vitest", "run"] },
+      "mutation": { "command": "pnpm", "args": ["exec", "stryker", "run"] },
+      "buildTool": "pnpm",
+      "resultType": "discriminated union { ok: true, value } | { ok: false, error }",
+      "nullSafety": "strict TS (strictNullChecks)"
+    },
+    "rust": {
+      "extensions": [".rs"],
+      "markers": ["Cargo.toml"],
+      "docComment": { "style": "line", "prefix": "///", "suffix": "", "name": "rustdoc" },
+      "formatter": { "command": "cargo", "args": ["fmt"] },
+      "formatterCheck": { "command": "cargo", "args": ["fmt", "--check"] },
+      "linter": { "command": "cargo", "args": ["clippy", "--", "-D", "warnings"] },
+      "typecheck": { "command": "cargo", "args": ["check"] },
+      "test": { "command": "cargo", "args": ["test"] },
+      "testScoped": { "command": "cargo", "args": ["test"] },
+      "mutation": { "command": "cargo", "args": ["mutants"] },
+      "buildTool": "cargo",
+      "resultType": "std::result::Result<T, E>",
+      "nullSafety": "Option<T>"
+    },
+    "go": {
+      "extensions": [".go"],
+      "markers": ["go.mod"],
+      "docComment": { "style": "line", "prefix": "//", "suffix": "", "name": "godoc" },
+      "formatter": { "command": "gofmt", "args": ["-w"] },
+      "formatterCheck": { "command": "gofmt", "args": ["-l"] },
+      "linter": { "command": "staticcheck", "args": ["./..."] },
+      "typecheck": { "command": "go", "args": ["vet", "./..."] },
+      "test": { "command": "go", "args": ["test", "./..."] },
+      "testScoped": { "command": "go", "args": ["test"] },
+      "mutation": { "command": "go-mutesting", "args": ["./..."] },
+      "buildTool": "go",
+      "resultType": "(T, error)",
+      "nullSafety": "explicit nil checks"
+    }
+  }
+}
