@@ -1,0 +1,17 @@
+.gradle/
+build/
+.idea/
+.vscode/
+*.iml
+*.log
+
+# OpenTofu
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+# Env
+.env
+.env.local

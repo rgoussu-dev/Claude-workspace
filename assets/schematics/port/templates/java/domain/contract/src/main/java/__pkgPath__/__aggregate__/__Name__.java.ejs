@@ -1,0 +1,18 @@
+package <%= basePackage %>.<%= aggregate %>;
+
+/**
+ * Secondary port for <%= humanName %>. Adapters under
+ * {@code infrastructure/<%= nameKebab %>/} fulfil this contract; the fake
+ * in {@code infrastructure/<%= nameKebab %>/fake} is the reference
+ * implementation used by tests and, optionally, by prototype builds.
+ *
+ * <p>Implementations must document thread-safety and whether operations are
+ * idempotent. The domain does not depend on any particular persistence or
+ * transport technology; no framework annotations, no driver types, no
+ * transport types are permitted in this interface.
+ */
+public interface <%= Name %> {
+
+  // TODO: declare the operations this port exposes.
+  // Return Result<T> for expected failures; throw only for bugs / infrastructure outages.
+}

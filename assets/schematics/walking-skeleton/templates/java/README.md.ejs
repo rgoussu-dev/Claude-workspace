@@ -1,0 +1,44 @@
+# <%= projectName %>
+
+Walking skeleton scaffolded by `@rgoussu.dev/keel`. Trunk-based, hexagonal,
+Command/Query + Mediator, fakes-not-mocks, OpenTofu-deployed.
+
+## Layout
+
+```
+application/<channel>/{contract,executable}   # created by `keel g executable`
+domain/contract                               # ports + DTOs
+domain/core/kernel                            # Action / Command / Query / Result / Error / Handler / Mediator
+domain/core/<aggregate>                       # business logic
+infrastructure/<port>/{<impl>,fake}           # adapters + fake module
+infrastructure/iac                            # OpenTofu
+build-logic/                                  # gradle convention plugins
+gradle/libs.versions.toml                     # version catalog
+```
+
+## Setup (one-time)
+
+The skeleton does not ship the Gradle Wrapper — generate it once with a
+system-installed Gradle, then commit the result:
+
+```sh
+gradle wrapper --gradle-version 8.11
+git add gradle/wrapper/ gradlew gradlew.bat
+```
+
+Also set the Java package for {@code group} on the root project by
+editing `build.gradle.kts` and adding:
+
+```kotlin
+allprojects { group = "<%= basePackage %>" }
+```
+
+Once the wrapper exists, the documented commands below work.
+
+## Next steps
+
+1. Pick a web / messaging framework for the first channel:
+   `keel g executable` (not yet shipped — see roadmap).
+2. Run the walking skeleton end-to-end:
+   `./gradlew check && tofu plan`
+3. Iterate in small trunk commits (`/commit`).

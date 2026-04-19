@@ -1,0 +1,9 @@
+// Root project build file. All concrete Gradle config lives in the
+// `build-logic/` included build via convention plugins; this file stays
+// intentionally thin so module build.gradle.kts files apply conventions
+// rather than duplicating config.
+
+allprojects {
+  group = "<%= basePackage %>"
+  version = providers.gradleProperty("projectVersion").orElse("0.0.1-SNAPSHOT").get()
+}
