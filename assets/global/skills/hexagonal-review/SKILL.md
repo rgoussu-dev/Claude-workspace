@@ -15,24 +15,34 @@ dependency rule.
 
 ## Layers
 
-| Layer                    | Location                  | Allowed to depend on      |
-| ------------------------ | ------------------------- | ------------------------- |
-| Domain — contract        | `domain/contract/`        | nothing outside `domain/` |
-| Domain — core            | `domain/core/`            | `domain/contract` only    |
-| Application (interface)  | `application/<channel>/*` | `domain/contract` only    |
-| Infrastructure (adapter) | `infrastructure/<port>/*` | `domain/contract` only    |
+| Layer                                       | Location                           | Allowed to depend on                                                                          |
+| ------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| Domain — contract                           | `domain/contract/`                 | nothing outside `domain/`                                                                     |
+| Domain — core                               | `domain/core/`                     | `domain/contract` only                                                                        |
+| Application — interface adapter             | `application/<channel>/contract`   | `domain/contract` only                                                                        |
+| Application — composition root (executable) | `application/<channel>/executable` | `domain/contract`, `domain/core`, `application/<channel>/contract`, `infrastructure/<port>/*` |
+| Infrastructure (adapter)                    | `infrastructure/<port>/*`          | `domain/contract` only                                                                        |
 
 `domain/core` never imports from `application/*`, `infrastructure/*`, or any
-framework module. `infrastructure/*` and `application/*` never import from
-`domain/core`; they work through `domain/contract` only.
+framework module. Interface adapters (`application/<channel>/contract`) and
+infrastructure adapters (`infrastructure/<port>/*`) never import from
+`domain/core`; they work through `domain/contract` only. **Only** the
+`application/<channel>/executable` module — the composition root — is
+permitted to reach across layers, and only to wire concrete handlers into
+the mediator and concrete adapters into ports. It must contain no logic.
 
 ## Responsibilities
 
-- **Interface layer** (`application/<channel>`): map transport DTO → `Action`,
+- **Interface adapter** (`application/<channel>/contract`): map transport DTO → `Action`,
   dispatch via mediator, map `Result` back. No branching on business rules,
   no validation beyond deserialization, no orchestration. If you find
   yourself writing an `if` that checks business state, stop — move it to a
   handler in `domain/core`.
+- **Composition root** (`application/<channel>/executable`): instantiate
+  concrete handlers, concrete adapters, and the mediator; hand the wired
+  graph to the runtime (e.g. a Quarkus/Spring startup bean, a `main`
+  method). Zero business logic, zero transport mapping — both belong in
+  the layers above.
 - **Infrastructure** (`infrastructure/<port>/<impl>`): adapt an external
   technology to a port interface. No business logic. A repository adapter
   translates rows to domain types; it does not decide what to do with them.

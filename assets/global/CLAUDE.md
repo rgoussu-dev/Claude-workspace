@@ -25,7 +25,7 @@ infrastructure/<port>/<impl>     # real adapter (e.g., postgres, kafka)
 infrastructure/<port>/fake       # fake module — test-dep always, prod-dep opt-in
 ```
 
-- **Interface layer (`application/<channel>`) is dumb.** It maps transport DTOs to actions, dispatches via the mediator, and maps the `Result` back. **Zero business logic.**
+- **Interface layer (`application/<channel>/contract`) is dumb.** It maps transport DTOs to actions, dispatches via the mediator, and maps the `Result` back. **Zero business logic.** Its sibling `application/<channel>/executable` is the channel's composition root and wires the runtime (see §1.1).
 - **Infrastructure is dumb.** Adapters only. **Zero business logic.**
 - Business logic lives exclusively in `domain/core`.
 - Multiple executables per project are expected (`rest`, `cli`, `worker`, `ui`, …).
@@ -33,9 +33,10 @@ infrastructure/<port>/fake       # fake module — test-dep always, prod-dep opt
 ### 1.1 Dependency rule
 
 - `domain/*` depends on **nothing outside `domain/`**.
-- `application/<channel>/*` depends on `domain/contract` (ports, DTOs) only — never on `domain/core` or `infrastructure/*`.
+- `application/<channel>/contract` depends on `domain/contract` (ports, DTOs, mediator kernel) only — never on `domain/core` or `infrastructure/*`.
+- `application/<channel>/executable` is the **composition root** for that channel: it may depend on `domain/contract`, `domain/core`, `application/<channel>/contract`, and any `infrastructure/<port>/*` strictly so it can instantiate concrete handlers and adapters and hand them to the mediator. **It must contain no logic** — it only wires and runs. Any non-wiring behaviour belongs in `domain/core`; any adapter behaviour belongs in the relevant `infrastructure/<port>/*`.
 - `infrastructure/<port>/*` depends on `domain/contract` (the port it implements) — never on other adapters, never on `domain/core`, never on `application/*`.
-- Enforced at build time (ArchUnit in Java, dependency-cruiser in TS, cargo-deny in Rust, etc.).
+- Enforced at build time (ArchUnit in Java, dependency-cruiser in TS, cargo-deny in Rust, etc.). The architecture rules pin the composition-root exception to `application/<channel>/executable` only — violating it from `application/<channel>/contract` is still a build failure.
 
 ### 1.2 Framework choice
 
