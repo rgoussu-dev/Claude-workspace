@@ -3,6 +3,9 @@ import { install } from '../installer/install.js';
 import { update } from '../installer/update.js';
 import { doctor } from '../installer/doctor.js';
 import { logger } from '../util/log.js';
+import { buildEngine } from '../schematics/registry.js';
+import { cliPrompt } from '../engine/homegrown.js';
+import type { PromptSchema } from '../engine/types.js';
 
 /**
  * Entry point for the `keel` CLI. Wires commander to the installer
@@ -52,12 +55,63 @@ export async function main(argv: string[]): Promise<void> {
       if (issues > 0) process.exit(1);
     });
 
+  program
+    .command('generate <schematic>')
+    .alias('g')
+    .description('Run a registered schematic (e.g. port, scenario, walking-skeleton).')
+    .option('--dry-run', 'show the planned changes without writing', false)
+    .option('--set <kv...>', 'set a parameter as key=value (repeatable)', [])
+    .action(
+      async (
+        schematic: string,
+        opts: { dryRun: boolean; set: string[] },
+      ): Promise<void> => {
+        const engine = buildEngine();
+        const target = engine.get(schematic);
+        if (!target) {
+          logger.error(`unknown schematic: ${schematic}`);
+          logger.info(`available: ${engine.names().join(', ')}`);
+          process.exit(1);
+        }
+        const options: Record<string, unknown> = parseKv(opts.set);
+        for (const spec of target.parameters) {
+          if (options[spec.name] !== undefined) continue;
+          if (!spec.prompt) {
+            if (spec.required) {
+              logger.error(`missing required parameter: ${spec.name}`);
+              process.exit(1);
+            }
+            continue;
+          }
+          options[spec.name] = await cliPrompt(spec.prompt as PromptSchema<unknown>);
+        }
+        await engine.run(
+          schematic,
+          options,
+          { logger, cwd: process.cwd(), prompt: cliPrompt, invoke: async () => {} },
+          { dryRun: opts.dryRun },
+        );
+      },
+    );
+
   try {
     await program.parseAsync(argv);
   } catch (err) {
     logger.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
+}
+
+function parseKv(pairs: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const raw of pairs) {
+    const eq = raw.indexOf('=');
+    if (eq <= 0) {
+      throw new Error(`--set expects key=value, got: ${raw}`);
+    }
+    out[raw.slice(0, eq)] = raw.slice(eq + 1);
+  }
+  return out;
 }
 
 async function readPackageVersion(): Promise<string> {
