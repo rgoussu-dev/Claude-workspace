@@ -37,10 +37,11 @@ framework module. `infrastructure/*` and `application/*` never import from
   technology to a port interface. No business logic. A repository adapter
   translates rows to domain types; it does not decide what to do with them.
 - **Domain/core**: holds every rule, every invariant, every decision.
-  Mediator lives in `domain/core/kernel`. Handlers live in
-  `domain/core/<aggregate>`.
+  Handlers live in `domain/core/<aggregate>`.
 - **Domain/contract**: port interfaces (primary + secondary), domain DTOs,
-  sealed `Action` / `Command` / `Query` / `Error` / `Result` types. Nothing
+  sealed `Action` / `Command` / `Query` / `Error` / `Result` types, **and
+  the Mediator** — it sits on the contract side so `application/<channel>`
+  may depend on it without reaching into `domain/core`. Nothing
   executable.
 
 ## Red flags to watch for

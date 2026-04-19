@@ -45,7 +45,8 @@ describe('walking-skeleton schematic', () => {
       expect(existsSync(path.join(workDir, f))).toBe(true);
     }
 
-    // Kernel
+    // Kernel lives in domain/contract so application/* can depend on it
+    // without violating the §1.1 dependency rule.
     for (const cls of [
       'Action',
       'Command',
@@ -58,8 +59,13 @@ describe('walking-skeleton schematic', () => {
       'NoHandlerError',
     ]) {
       expect(
-        existsSync(path.join(workDir, `domain/core/src/main/java/com/example/kernel/${cls}.java`)),
+        existsSync(
+          path.join(workDir, `domain/contract/src/main/java/com/example/kernel/${cls}.java`),
+        ),
       ).toBe(true);
+      expect(
+        existsSync(path.join(workDir, `domain/core/src/main/java/com/example/kernel/${cls}.java`)),
+      ).toBe(false);
     }
 
     // IaC (repo-root per conventions §5)
@@ -88,7 +94,7 @@ describe('walking-skeleton schematic', () => {
 
     // Kernel sanity: Mediator injects Collection<Handler>, not Map
     const mediator = readFileSync(
-      path.join(workDir, 'domain/core/src/main/java/com/example/kernel/Mediator.java'),
+      path.join(workDir, 'domain/contract/src/main/java/com/example/kernel/Mediator.java'),
       'utf8',
     );
     expect(mediator).toContain('public Mediator(Collection<Handler<?>> handlers)');

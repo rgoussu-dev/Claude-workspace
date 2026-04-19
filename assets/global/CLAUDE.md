@@ -13,9 +13,14 @@ Every project uses ports & adapters, **including frontends**.
 ```
 application/<channel>/contract   # DTOs, schemas (OpenAPI, GraphQL, CLI spec)
 application/<channel>/executable # runnable; framework chosen at walking-skeleton time
-domain/contract                  # ports (primary + secondary), domain DTOs
-domain/core/kernel               # mediator, Action/Command/Query/Result base types
-domain/core/<aggregate>          # business logic
+domain/contract                  # ports (primary + secondary), domain DTOs,
+                                 # and the mediator kernel (Action / Command /
+                                 # Query / Result / Error / Handler / Mediator) —
+                                 # kept here, not in domain/core, so
+                                 # application/* can dispatch without violating
+                                 # the dependency rule.
+domain/core/<aggregate>          # business logic (concrete commands, queries,
+                                 # handlers, errors)
 infrastructure/<port>/<impl>     # real adapter (e.g., postgres, kafka)
 infrastructure/<port>/fake       # fake module — test-dep always, prod-dep opt-in
 ```

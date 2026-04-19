@@ -15,7 +15,9 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 echo "--- walking skeleton markers ---"
-[ -d "domain/core/kernel" ]       && echo "found: domain/core/kernel"        || echo "missing: domain/core/kernel (mediator expected here)"
+if   [ -d "domain/contract/src/main/java" ] && find domain/contract/src/main/java -type d -name kernel -print -quit 2>/dev/null | grep -q .; then echo "found: domain/contract/kernel";
+elif [ -d "domain/core/kernel" ]; then echo "found (legacy location): domain/core/kernel — kernel now lives in domain/contract";
+else echo "missing: domain/contract/kernel (mediator expected here)"; fi
 [ -d "domain/contract" ]          && echo "found: domain/contract"           || echo "missing: domain/contract (ports expected here)"
 [ -d "application" ]              && echo "found: application"               || echo "missing: application (interface layer expected here)"
 [ -d "infrastructure" ]           && echo "found: infrastructure"            || echo "missing: infrastructure (adapters expected here)"

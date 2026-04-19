@@ -9,8 +9,11 @@ import { packageToPath, toPascalCase } from '../util.js';
  *   - root Gradle multi-project (settings.gradle.kts, version catalog)
  *   - `build-logic/` included build with java + test + quality conventions
  *   - `domain/contract` module (empty but wired)
- *   - `domain/core` with the roll-your-own mediator kernel
- *     (Action / Command / Query / Result / Handler / Mediator)
+ *   - `domain/core` as the home for business logic (aggregates, handlers)
+ *   - `domain/contract/kernel` with the roll-your-own mediator kernel
+ *     (Action / Command / Query / Result / Handler / Mediator) — kept in
+ *     `domain/contract` so the `application/<channel>` layer can dispatch
+ *     via the mediator without violating the §1.1 dependency rule.
  *   - `/iac/` OpenTofu stub (repo-root per conventions §5)
  * then invokes the `port` schematic for a starter port so the skeleton
  * ends with one real adapter slot and one fake.

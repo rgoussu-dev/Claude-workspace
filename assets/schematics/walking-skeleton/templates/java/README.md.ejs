@@ -7,8 +7,8 @@ Command/Query + Mediator, fakes-not-mocks, OpenTofu-deployed.
 
 ```
 application/<channel>/{contract,executable}   # created by `keel g executable`
-domain/contract                               # ports + DTOs
-domain/core/kernel                            # Action / Command / Query / Result / Error / Handler / Mediator
+domain/contract                               # ports + DTOs + mediator kernel
+domain/contract/kernel                        # Action / Command / Query / Result / Error / Handler / Mediator
 domain/core/<aggregate>                       # business logic
 infrastructure/<port>/{<impl>,fake}           # adapters + fake module
 iac/<target>/                                 # OpenTofu (repo root)
