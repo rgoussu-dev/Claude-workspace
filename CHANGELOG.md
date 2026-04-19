@@ -4,6 +4,45 @@ All notable changes to `@rgoussu.dev/keel` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `CI` workflow (`.github/workflows/ci.yml`): lint, typecheck, test, build on
+  every pull request and push to `main`, matrixed across Node 20 and 22 with
+  pnpm 9 and a pnpm cache.
+- `Release` workflow (`.github/workflows/release.yml`): on `v*` tag push,
+  verifies the tag matches `package.json`, reruns the full verify pipeline,
+  publishes to npm with `--provenance --access public`, and creates a GitHub
+  Release with auto-generated notes.
+- npm dist-tag is derived from the semver prerelease identifier (`alpha` →
+  `alpha`, `beta` → `beta`, `rc` → `next`, none → `latest`); unknown
+  prerelease identifiers fail the release.
+- `CLAUDE.md` at the project root documenting repo-specific engineering and
+  workflow conventions, including the PR auto-subscribe preference for
+  cloud-hosted Claude sessions.
+- `.github/dependabot.yml`: weekly grouped updates for `github-actions`.
+- README: CI/Release badges, `Development` section, `Release process`
+  section.
+- `.prettierignore` so generated files (lockfile, `dist/`, schematic
+  templates, manifests) are excluded from the prettier check.
+- Claude `PreToolUse` hook (`.claude/hooks/pre-commit-format.sh`) that
+  auto-formats and re-stages before every `git commit`, and blocks the
+  commit if lint still fails after formatting.
+- `format:check` npm script that runs `prettier --check .`.
+
+### Changed
+
+- `pnpm lint` now also runs `prettier --check .` after eslint, so
+  formatting drift fails the same gate as code-style rules.
+
+### Security
+
+- Pinned every GitHub Action in CI and release workflows to a full commit
+  SHA with a `# vX.Y.Z` comment (`actions/checkout`, `actions/setup-node`,
+  `pnpm/action-setup`, `softprops/action-gh-release`) so upstream changes
+  cannot reach the publishing pipeline without review.
+
 ## [0.1.0-alpha.1] — 2026-04-19
 
 First cut of the kit. Installs globally (user-wide defaults) and per-project
@@ -12,12 +51,14 @@ three-way update reconciliation. Homegrown schematics engine behind a
 swappable `Engine` / `Schematic` / `Tree` / `Context` port interface.
 
 ### CLI
+
 - `keel install [--global] [--force] [--dry-run]`
 - `keel update  [--global] [--dry-run] [--yes]` — three-way merge, prompts on conflict
 - `keel doctor` — audit both scopes for drift
 - `keel generate <schematic> [--dry-run] [--set k=v...]` (alias `g`)
 
 ### Global assets (`~/.claude/`)
+
 - `CLAUDE.md` encoding: hexagonal architecture, Command/Query + Mediator,
   DIP-strict tests (Scenario + Factory + fakes), walking skeleton first,
   IaC via OpenTofu, trunk-based + XP + SOLID + 12-Factor, public-API-docs
@@ -31,6 +72,7 @@ swappable `Engine` / `Schematic` / `Tree` / `Context` port interface.
 - Slash commands: `/commit`, `/sync`, `/diff-review`, `/docs-check`.
 
 ### Project assets (`<project>/.claude/`)
+
 - Hooks (`.sh` + `.ps1` pair each, platform-scoped in settings):
   - `PostToolUse` format-on-edit (spotless, prettier, rustfmt, gofmt, tofu fmt)
   - `PreToolUse` pre-commit-verify (gradle check, pnpm typecheck+test, cargo,
@@ -40,11 +82,13 @@ swappable `Engine` / `Schematic` / `Tree` / `Context` port interface.
   - `Stop` commit-discipline reminder
 
 ### Conventions table
+
 - `assets/conventions/languages.json` — per-language formatter, linter,
   typecheck, test, mutation, doc format. Single source of truth for all
   hooks / commands / schematics.
 
 ### Schematics (Java proving ground)
+
 - `port` — secondary port + fake module + contract test (4 files).
 - `scenario` — Scenario + Factory + Test triad in the domain test tree.
 - `walking-skeleton` — multi-module Gradle shell + build-logic convention
@@ -53,6 +97,7 @@ swappable `Engine` / `Schematic` / `Tree` / `Context` port interface.
   composes `port` for a starter secondary port (27 files).
 
 ### Not yet shipped (roadmap)
+
 - `executable` schematic — chooses web / messaging framework at
   walking-skeleton time; wires an `application/<channel>/executable`.
 - `handler` schematic — Action + Handler + wiring.
@@ -62,4 +107,5 @@ swappable `Engine` / `Schematic` / `Tree` / `Context` port interface.
 - Migration runner for `keel update` (scripts exist as a concept but are
   not yet executed).
 
+[Unreleased]: https://github.com/rgoussu-dev/Claude-workspace/compare/v0.1.0-alpha.1...HEAD
 [0.1.0-alpha.1]: https://github.com/rgoussu-dev/Claude-workspace/releases/tag/v0.1.0-alpha.1
