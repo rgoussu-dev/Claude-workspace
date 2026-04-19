@@ -181,24 +181,53 @@ Audits:
 
 ## Java/Quarkus Proving Ground — LOCKED
 
+- **Java:** 25 LTS. Global principle: **always latest stable** (LTS for langs, latest for frameworks).
 - **Build tool:** Gradle (always). Kotlin DSL.
 - **Multi-module:** standard multi-project build + `build-logic/` included build (convention plugins) + `gradle/libs.versions.toml` version catalog.
 - **Test stack:** JUnit 5 + AssertJ + **ArchUnit** (hex boundary enforcement) + **PIT/pitest** (mutation testing, `pitest-junit5-plugin`, changed-classes scope by default).
-- **Mediator:** explicit DI at construction — handlers wired via `Map<Class<?>, Handler>` passed to `Mediator` constructor. No reflection, no annotation scanning. Lives in `domain/core/kernel/`.
+- **Quality stack:** Spotless + google-java-format · ErrorProne · NullAway + JSpecify · ArchUnit · PIT. **No Checkstyle** — JavaDoc-on-public-API enforced via Claude skill/hook/command triad.
+- **Mediator:** explicit DI at construction; `Collection<Handler>` only; handlers self-declare supported actions via `supports()`. Lives in `domain/core/kernel/`.
 
-### Example mediator
+### Mediator design (Java 25)
+
 ```java
+// Sealed action hierarchy
+public sealed interface Action<R>  permits Command, Query {}
+public non-sealed interface Command<R> extends Action<R> {}
+public non-sealed interface Query<R>   extends Action<R> {}
+
+// Result type
+public sealed interface Result<T> {
+  record Success<T>(T value)     implements Result<T> {}
+  record Failure<T>(Error cause) implements Result<T> {}
+  // + map / flatMap / fold / isSuccess
+}
+
+// Handler bound to a sealed base; multi-action within that base
+public interface Handler<B extends Action<?>> {
+  Set<Class<? extends B>> supports();
+  Result<?> handle(B action);
+}
+
+// Sync mediator
 public final class Mediator {
-  private final Map<Class<?>, CommandHandler<?, ?>> commandHandlers;
-  private final Map<Class<?>, QueryHandler<?, ?>> queryHandlers;
+  private final Map<Class<? extends Action<?>>, Handler<?>> registry;
+  public Mediator(Collection<Handler<?>> handlers) { /* build + detect dupes */ }
+  public <R> Result<R> dispatch(Action<R> action) { /* typed, unchecked cast centralized */ }
+}
 
-  public Mediator(Map<Class<?>, CommandHandler<?, ?>> cmds,
-                  Map<Class<?>, QueryHandler<?, ?>> qrys) { … }
-
-  public <C extends Command<R>, R> R send(C command) { … }
-  public <Q extends Query<R>, R> R ask(Q query) { … }
+// Reactive variant (Mutiny/Quarkus)
+public final class ReactiveMediator {
+  public <R> Uni<Result<R>> dispatch(Action<R> action);
 }
 ```
+
+### Error mapping
+
+- Domain: sealed `Error` hierarchy per aggregate (pattern-matchable).
+- REST: map `Error` → **RFC 9457 Problem Details** in the interface-layer adapter.
+- Non-REST: equivalent adapted formats (CLI → exit code + structured stderr; messaging → CloudEvents error extension; gRPC → `google.rpc.Status`).
+- Mapping lives in `application/<channel>/executable`; domain stays transport-agnostic.
 
 ### Project skeleton
 ```
@@ -215,18 +244,21 @@ public final class Mediator {
 └── infrastructure/<port>/{<impl>,fake}/build.gradle.kts
 ```
 
-## Open Questions — RESUME HERE
+## Design — COMPLETE
 
-1. **Java version:** 21 LTS (Quarkus 3.x default) or 17?
-2. **Quality toolchain:** Spotless + google-java-format + Checkstyle + ArchUnit + PIT — all in? Or drop Checkstyle?
+All architectural decisions resolved. Ready to build.
 
-## Next Actions
+## MVP Build Plan
 
-- Resolve the two open questions.
-- Build MVP:
-  1. Scaffold `keel` CLI (`bin/keel.js`) + manifest + install/update + update-migration runner.
-  2. Homegrown schematics engine behind `Engine` wrapper interface.
-  3. Global `CLAUDE.md` + `settings.json` encoding all architectural constraints.
-  4. Auto-format + pre-commit-tests hooks (.sh + .ps1).
-  5. First three schematics end-to-end for Java/Quarkus: `walking-skeleton`, `port`, `scenario`.
-  6. `/commit` slash command.
+1. **`keel` CLI scaffold** (`bin/keel.js`, manifest, install/update/migrate).
+2. **Homegrown schematics engine** behind `Engine` / `Schematic` / `Tree` / `Context` wrapper.
+3. **Global `CLAUDE.md`** encoding all architectural constraints (hex, DIP, mediator, walking-skeleton, IaC, XP/SOLID/12-factor, trunk-based, commit discipline, comment policy, always-latest).
+4. **Global `settings.json`** with pre-allowed permissions (toolchain + read-only).
+5. **Hooks** (.sh + .ps1 pairs):
+   - `PostToolUse` → auto-format on Edit/Write.
+   - `PreToolUse` on git commit → type-check + scoped tests + JavaDoc public-API check.
+   - `SessionStart` → context load.
+   - `Stop` → commit-discipline reminder.
+6. **Schematics (Java/Quarkus proving ground):** `walking-skeleton`, `port`, `scenario`.
+7. **Slash commands:** `/commit`, `/javadoc-check`, `/sync`, `/diff-review`.
+8. **Skills:** `hexagonal-review`, `test-scenario-pattern`, `javadoc-public-api`, `walking-skeleton-guide`.
