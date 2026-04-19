@@ -1,10 +1,3 @@
-resource "google_artifact_registry_repository" "app" {
-  location      = var.region
-  repository_id = var.service_name
-  format        = "DOCKER"
-  description   = "Container images for ${var.service_name}"
-}
-
 resource "google_cloud_run_v2_service" "app" {
   name                = var.service_name
   location            = var.region
@@ -45,8 +38,6 @@ resource "google_cloud_run_v2_service" "app" {
     type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
     percent = 100
   }
-
-  depends_on = [google_artifact_registry_repository.app]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public" {

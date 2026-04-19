@@ -29,11 +29,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 }
 
 resource "google_service_account" "deployer" {
-  # GCP caps `account_id` at 30 characters. `<service_name>-deployer`
-  # can exceed that for service names >21 chars, so truncate defensively.
-  # The deployer SA is internal infra — the readable suffix matters less
-  # than the deterministic mapping from service_name to id.
-  account_id   = substr("${var.service_name}-deployer", 0, 30)
+  account_id   = "${var.service_name}-deployer"
   display_name = "${var.service_name} GitHub Actions deployer"
   description  = "Service account CI impersonates to push images + deploy revisions."
 }

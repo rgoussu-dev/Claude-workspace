@@ -118,15 +118,18 @@ describe('walking-skeleton schematic', () => {
       expect(existsSync(path.join(workDir, f))).toBe(true);
     }
 
-    // iac-cloudrun
+    // iac-cloudrun — lifecycle-split: bootstrap owns WIF + AR + SA,
+    // cloudrun owns just the service.
     for (const f of [
       'iac/cloudrun/main.tf',
-      'iac/cloudrun/wif.tf',
       'iac/cloudrun/Dockerfile',
       'iac/bootstrap/bootstrap.sh',
+      'iac/bootstrap/wif.tf',
+      'iac/bootstrap/main.tf',
     ]) {
       expect(existsSync(path.join(workDir, f))).toBe(true);
     }
+    expect(existsSync(path.join(workDir, 'iac/cloudrun/wif.tf'))).toBe(false);
 
     // The old walking-skeleton stubs are gone — only iac-cloudrun output now.
     expect(existsSync(path.join(workDir, 'iac/main.tf'))).toBe(false);

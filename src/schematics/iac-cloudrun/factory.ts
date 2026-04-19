@@ -4,19 +4,27 @@ import { renderTemplate } from '../../engine/template.js';
 import type { Context, Options, Schematic, Tree } from '../../engine/types.js';
 
 /**
- * Scaffolds the {@code /iac/cloudrun/} OpenTofu module and the
- * {@code /iac/bootstrap/} one-shot that provisions the resources tofu
- * itself cannot create (the GCS state bucket and the required GCP APIs).
+ * Scaffolds two OpenTofu modules split by lifecycle:
  *
- * What the module declares:
- *   - a Cloud Run v2 service with scale-to-zero defaults;
- *   - an Artifact Registry Docker repo colocated with the service;
- *   - a Workload Identity Federation pool + provider + service account,
- *     scoped by an `attribute.repository` condition so only the chosen
- *     GitHub repo can impersonate the deployer SA (no long-lived keys);
- *   - a `Dockerfile` that builds Quarkus as a **native image** — this is
- *     where keel's "packaging is iac's job" convention lands: the
- *     application module itself stays packaging-agnostic.
+ *   - {@code /iac/bootstrap/} runs once from a developer laptop and
+ *     owns everything long-lived and rarely-changing: the GCS tofu
+ *     state bucket (via a shell pre-step; tofu can't manage its own
+ *     backend), the Artifact Registry Docker repo, the Workload
+ *     Identity Federation pool + provider, and the deployer service
+ *     account — scoped by an `attribute.repository` condition so only
+ *     the chosen GitHub repo can impersonate it (no long-lived keys).
+ *   - {@code /iac/cloudrun/} runs from CI on every push and owns the
+ *     Cloud Run v2 service only. Because bootstrap creates WIF + AR
+ *     + deployer SA up front, the very first `git push` to `main`
+ *     can create the service unattended — there is no "first
+ *     deploy must happen from a laptop" step.
+ *
+ * Both modules back their state in the same GCS bucket under distinct
+ * prefixes (`bootstrap/state` and `cloudrun/state`).
+ *
+ * The Dockerfile lives with `/iac/cloudrun/` and builds the Quarkus
+ * runnable as a GraalVM native image — keel's "packaging is iac's
+ * job" convention keeps the application module packaging-agnostic.
  *
  * Tofu variables (project id, service name, image reference, GitHub
  * slug) are supplied at `tofu plan`/`apply` time and never at scaffold
@@ -29,7 +37,7 @@ import type { Context, Options, Schematic, Tree } from '../../engine/types.js';
 export const iacCloudrunSchematic: Schematic = {
   name: 'iac-cloudrun',
   description:
-    'Scaffold /iac/cloudrun/ (tofu Cloud Run + WIF) and /iac/bootstrap/ (state-bucket one-shot).',
+    'Scaffold /iac/bootstrap/ (tofu AR + WIF + deployer SA, run once) and /iac/cloudrun/ (tofu Cloud Run service, run by CI).',
   parameters: [],
 
   async run(tree: Tree, _options: Options, ctx: Context): Promise<void> {
@@ -41,7 +49,7 @@ export const iacCloudrunSchematic: Schematic = {
     );
     await renderTemplate(tree, templateRoot, '', {});
     ctx.logger.info(
-      'iac-cloudrun: /iac/cloudrun + /iac/bootstrap rendered. Next: PROJECT_ID=… ./iac/bootstrap/bootstrap.sh',
+      'iac-cloudrun: /iac/bootstrap + /iac/cloudrun rendered. Next: PROJECT_ID=… ./iac/bootstrap/bootstrap.sh, then `cd iac/bootstrap && tofu apply`.',
     );
   },
 };

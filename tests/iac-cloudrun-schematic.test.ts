@@ -17,7 +17,7 @@ describe('iac-cloudrun schematic', () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
-  it('emits the complete /iac/cloudrun module and the bootstrap folder', async () => {
+  it('emits the split bootstrap + cloudrun tofu modules', async () => {
     const engine = new HomegrownEngine();
     engine.register(iacCloudrunSchematic);
 
@@ -32,14 +32,32 @@ describe('iac-cloudrun schematic', () => {
       'iac/cloudrun/providers.tf',
       'iac/cloudrun/variables.tf',
       'iac/cloudrun/main.tf',
-      'iac/cloudrun/wif.tf',
       'iac/cloudrun/outputs.tf',
       'iac/cloudrun/Dockerfile',
       'iac/cloudrun/README.md',
       'iac/bootstrap/bootstrap.sh',
       'iac/bootstrap/README.md',
+      'iac/bootstrap/versions.tf',
+      'iac/bootstrap/providers.tf',
+      'iac/bootstrap/variables.tf',
+      'iac/bootstrap/main.tf',
+      'iac/bootstrap/wif.tf',
+      'iac/bootstrap/outputs.tf',
     ];
     for (const rel of expected) expect(existsSync(path.join(workDir, rel))).toBe(true);
+  });
+
+  it('keeps wif.tf out of /iac/cloudrun so CI does not need to manage it', async () => {
+    const engine = new HomegrownEngine();
+    engine.register(iacCloudrunSchematic);
+
+    await engine.run(
+      'iac-cloudrun',
+      {},
+      { logger, cwd: workDir, prompt: cliPrompt, invoke: async () => {} },
+    );
+
+    expect(existsSync(path.join(workDir, 'iac/cloudrun/wif.tf'))).toBe(false);
   });
 
   it('wires the GCS remote backend and the native-image Dockerfile', async () => {
@@ -72,10 +90,27 @@ describe('iac-cloudrun schematic', () => {
       { logger, cwd: workDir, prompt: cliPrompt, invoke: async () => {} },
     );
 
-    const wif = readFileSync(path.join(workDir, 'iac/cloudrun/wif.tf'), 'utf8');
+    const wif = readFileSync(path.join(workDir, 'iac/bootstrap/wif.tf'), 'utf8');
     expect(wif).toContain('attribute_condition');
     expect(wif).toContain('assertion.repository == \\"${var.github_repository}\\"');
     expect(wif).toContain('roles/iam.workloadIdentityUser');
+  });
+
+  it('gives bootstrap and cloudrun distinct state prefixes in the shared GCS backend', async () => {
+    const engine = new HomegrownEngine();
+    engine.register(iacCloudrunSchematic);
+
+    await engine.run(
+      'iac-cloudrun',
+      {},
+      { logger, cwd: workDir, prompt: cliPrompt, invoke: async () => {} },
+    );
+
+    const cloudrunVersions = readFileSync(path.join(workDir, 'iac/cloudrun/versions.tf'), 'utf8');
+    const bootstrapVersions = readFileSync(path.join(workDir, 'iac/bootstrap/versions.tf'), 'utf8');
+    expect(cloudrunVersions).toContain('prefix = "cloudrun/state"');
+    expect(bootstrapVersions).toContain('prefix = "bootstrap/state"');
+    expect(bootstrapVersions).toContain('backend "gcs"');
   });
 
   it('keeps bootstrap.sh executable on POSIX', () => {

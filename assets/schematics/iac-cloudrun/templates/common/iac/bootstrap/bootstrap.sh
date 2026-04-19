@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# One-shot bootstrap for the /iac/cloudrun tofu module. Creates the
-# resources tofu itself cannot create (chicken-and-egg): the GCS state
-# bucket, and enables the GCP APIs the module depends on.
+# One-shot bootstrap for the /iac/bootstrap and /iac/cloudrun tofu
+# modules. Creates the resources tofu itself cannot (chicken-and-egg):
+# enables the GCP APIs the bootstrap module depends on, and provisions
+# the GCS state bucket both modules use as their remote backend.
 #
 # Idempotent: running twice is safe. Run after `gcloud auth login` and
 # having picked a billing-enabled project.
@@ -26,10 +27,12 @@ echo
 
 echo "[bootstrap] enabling required GCP APIs..."
 gcloud services enable --project "${PROJECT_ID}" \
-  run.googleapis.com \
-  artifactregistry.googleapis.com \
+  cloudresourcemanager.googleapis.com \
+  iam.googleapis.com \
   iamcredentials.googleapis.com \
-  sts.googleapis.com
+  sts.googleapis.com \
+  artifactregistry.googleapis.com \
+  run.googleapis.com
 
 echo
 echo "[bootstrap] ensuring state bucket gs://${STATE_BUCKET} exists..."
@@ -52,21 +55,23 @@ cat <<NEXT
 
 [bootstrap] done. Next steps:
 
-  cd iac/cloudrun
+  # 1. Provision Artifact Registry, WIF, and the deployer SA.
+  cd iac/bootstrap
   tofu init -backend-config=bucket=${STATE_BUCKET}
-  tofu plan \\
+  tofu apply \\
     -var project_id=${PROJECT_ID} \\
+    -var region=${REGION} \\
     -var service_name=<svc> \\
-    -var image=${REGION}-docker.pkg.dev/${PROJECT_ID}/<svc>/rest:sha-<commit> \\
     -var github_repository=<owner>/<repo>
 
-After the first successful apply, copy the following into GitHub Actions
-environment secrets / variables so CI can assume the WIF identity:
+  # 2. Copy the five values below into GitHub Actions repo secrets.
+  #    After that, every push to main deploys itself — including the
+  #    very first one.
 
-  GCP_PROJECT_ID           = ${PROJECT_ID}
-  GCP_REGION               = ${REGION}
-  GCP_WIF_PROVIDER         = \$(tofu output -raw wif_provider)
-  GCP_DEPLOYER_SA_EMAIL    = \$(tofu output -raw deployer_service_account_email)
-  GCP_ARTIFACT_REGISTRY_URL= \$(tofu output -raw artifact_registry_url)
+      GCP_PROJECT_ID            = ${PROJECT_ID}
+      GCP_REGION                = ${REGION}
+      GCP_WIF_PROVIDER          = \$(tofu output -raw wif_provider)
+      GCP_DEPLOYER_SA_EMAIL     = \$(tofu output -raw deployer_service_account_email)
+      GCP_ARTIFACT_REGISTRY_URL = \$(tofu output -raw artifact_registry_url)
 
 NEXT

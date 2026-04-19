@@ -1,32 +1,30 @@
 # /iac/cloudrun
 
-OpenTofu module that provisions the Cloud Run service, its Artifact
-Registry repository, and the Workload Identity Federation trust chain
-GitHub Actions uses to deploy.
+OpenTofu module that provisions the **Cloud Run service** only.
+Everything long-lived (Artifact Registry, WIF, deployer SA) lives in
+[`/iac/bootstrap`](../bootstrap/README.md) and is created once before
+CI starts deploying.
+
+## Who runs this
+
+CI, every push to `main`. You should not need to run it by hand after
+bootstrap is done.
 
 ## First-time setup
 
-The tofu state lives in a GCS bucket that the module itself cannot
-create (chicken-and-egg). Run the one-shot bootstrap before the first
-`tofu init`:
+See [`/iac/bootstrap/README.md`](../bootstrap/README.md). Once its
+outputs are pasted into GitHub Actions repo secrets, the first `git
+push` creates the Cloud Run service here.
 
-```sh
-PROJECT_ID=your-gcp-project ./iac/bootstrap/bootstrap.sh
-```
-
-The script enables required APIs and provisions the state bucket.
-
-## Day-to-day
+## Day-to-day (manual override)
 
 ```sh
 cd iac/cloudrun
 tofu init -backend-config=bucket=${PROJECT_ID}-tofu-state
-tofu plan \
+tofu apply \
   -var project_id=${PROJECT_ID} \
-  -var service_name=acme-svc \
-  -var image=${REGION}-docker.pkg.dev/${PROJECT_ID}/acme-svc/rest:sha-abc \
-  -var github_repository=owner/repo
-tofu apply
+  -var service_name=<svc> \
+  -var image=${REGION}-docker.pkg.dev/${PROJECT_ID}/<svc>/rest:sha-<commit>
 ```
 
 ## Packaging
@@ -41,7 +39,4 @@ with a JVM-based build; the rest of the module is packaging-agnostic.
 
 ## Outputs worth capturing
 
-- `service_url` — public HTTPS URL. Smoke test this after every deploy.
-- `wif_provider` + `deployer_service_account_email` — paste into the
-  GitHub Actions workflow's `google-github-actions/auth` step.
-- `artifact_registry_url` — base of the image reference CI pushes to.
+- `service_url` — public HTTPS URL. Smoke-tested after every deploy.
