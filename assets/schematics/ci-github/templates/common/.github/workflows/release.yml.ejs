@@ -58,7 +58,7 @@ jobs:
 
       - name: Bump version in gradle.properties
         run: |
-          sed -i "s/^version\s*=.*/version=${{ steps.version.outputs.next }}/" gradle.properties
+          sed -i "s/^version[[:space:]]*=.*/version=${{ steps.version.outputs.next }}/" gradle.properties
 
       - name: Move [Unreleased] CHANGELOG entry under a dated heading
         run: |

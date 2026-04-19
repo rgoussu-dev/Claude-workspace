@@ -135,8 +135,10 @@ function amendSettings(tree: Tree, ctx: Context): void {
  * Adds the Quarkus entries to {@code gradle/libs.versions.toml}. The
  * version catalog format is a flat TOML with well-known tables, so we
  * can do targeted upserts instead of pulling a TOML parser. Idempotent:
- * a key already present anywhere in the file leaves the content
- * untouched.
+ * a key already present <em>inside the target section</em> leaves the
+ * content untouched — the same key may legitimately appear in multiple
+ * sections (e.g. {@code quarkus} under both {@code [versions]} and
+ * {@code [plugins]}), so the "already present" check is section-scoped.
  */
 function amendVersionCatalog(tree: Tree, quarkusVersion: string, ctx: Context): void {
   const buffer = tree.read('gradle/libs.versions.toml');

@@ -16,7 +16,6 @@ if (git rev-parse --git-dir 2>$null) {
 Write-Output "--- walking skeleton markers ---"
 @(
   @{ path = 'domain/contract';     note = 'ports + mediator kernel expected here' }
-  @{ path = 'domain/contract';     note = 'ports expected here' }
   @{ path = 'application';         note = 'interface layer expected here' }
   @{ path = 'infrastructure';      note = 'adapters expected here' }
 ) | ForEach-Object {

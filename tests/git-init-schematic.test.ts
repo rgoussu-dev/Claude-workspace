@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -84,7 +84,7 @@ describe('git-init schematic', () => {
   it('refuses to nest inside an enclosing repo', async () => {
     spawnSync('git', ['init', '-b', 'main'], { cwd: workDir, stdio: 'ignore' });
     const nested = path.join(workDir, 'subdir');
-    spawnSync('mkdir', [nested], { stdio: 'ignore' });
+    mkdirSync(nested, { recursive: true });
 
     const engine = new HomegrownEngine();
     engine.register(gitInitSchematic);

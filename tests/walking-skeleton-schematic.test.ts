@@ -57,9 +57,15 @@ describe('walking-skeleton schematic', () => {
       'build-logic/src/main/kotlin/keel.test-conventions.gradle.kts',
       'build-logic/src/main/kotlin/keel.quality-conventions.gradle.kts',
       'gradle/libs.versions.toml',
+      'gradle.properties',
     ]) {
       expect(existsSync(path.join(workDir, f))).toBe(true);
     }
+
+    // The release workflow reads `version=` from gradle.properties; the
+    // walking-skeleton template must ship it or the first release fails.
+    const gradleProps = readFileSync(path.join(workDir, 'gradle.properties'), 'utf8');
+    expect(gradleProps).toMatch(/^version\s*=\s*\d+\.\d+\.\d+/m);
 
     // Kernel lives in domain/contract, never domain/core.
     for (const cls of [
