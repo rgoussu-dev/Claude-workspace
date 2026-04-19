@@ -2,7 +2,14 @@ import path from 'node:path';
 import { paths } from '../../util/paths.js';
 import { renderTemplate } from '../../engine/template.js';
 import type { Options, Schematic } from '../../engine/types.js';
-import { humanise, packageToPath, toKebabCase, toPascalCase } from '../util.js';
+import {
+  humanise,
+  packageToPath,
+  resolveLanguage,
+  toKebabCase,
+  toPascalCase,
+  type SupportedLanguage,
+} from '../util.js';
 
 /**
  * Scaffolds a secondary port interface in `domain/contract` plus a fake
@@ -65,7 +72,7 @@ interface ResolvedVars {
   basePackage: string;
   pkgPath: string;
   aggregate: string;
-  language: 'java';
+  language: SupportedLanguage;
 }
 
 function resolve(options: Options): ResolvedVars {
@@ -78,10 +85,7 @@ function resolve(options: Options): ResolvedVars {
   const aggregate = String(options['aggregate'] ?? '').trim();
   if (!aggregate) throw new Error('port schematic: `aggregate` is required');
 
-  const language = (options['language'] ?? 'java') as 'java';
-  if (language !== 'java') {
-    throw new Error(`port schematic: language "${language}" not supported in MVP (java only)`);
-  }
+  const language = resolveLanguage(options['language'], 'port');
 
   const Name = toPascalCase(rawName);
   return {

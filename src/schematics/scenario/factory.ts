@@ -2,7 +2,13 @@ import path from 'node:path';
 import { paths } from '../../util/paths.js';
 import { renderTemplate } from '../../engine/template.js';
 import type { Options, Schematic } from '../../engine/types.js';
-import { humanise, packageToPath, toPascalCase } from '../util.js';
+import {
+  humanise,
+  packageToPath,
+  resolveLanguage,
+  toPascalCase,
+  type SupportedLanguage,
+} from '../util.js';
 
 /**
  * Scaffolds a Scenario + Factory + Test triad for a given behaviour. The
@@ -77,7 +83,7 @@ interface ResolvedVars {
   pkgPath: string;
   aggregate: string;
   PortName: string;
-  language: 'java';
+  language: SupportedLanguage;
 }
 
 function resolve(options: Options): ResolvedVars {
@@ -87,10 +93,7 @@ function resolve(options: Options): ResolvedVars {
   if (!basePackage) throw new Error('scenario schematic: `basePackage` is required');
   const aggregate = String(options['aggregate'] ?? '').trim();
   if (!aggregate) throw new Error('scenario schematic: `aggregate` is required');
-  const language = (options['language'] ?? 'java') as 'java';
-  if (language !== 'java') {
-    throw new Error(`scenario schematic: language "${language}" not supported in MVP (java only)`);
-  }
+  const language = resolveLanguage(options['language'], 'scenario');
   const portName = String(options['portName'] ?? 'Mediator').trim() || 'Mediator';
 
   const Name = toPascalCase(rawName);
