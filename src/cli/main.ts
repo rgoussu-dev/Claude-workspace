@@ -83,6 +83,14 @@ export async function main(argv: string[]): Promise<void> {
             }
             continue;
           }
+          if (!spec.required) {
+            const def = 'default' in spec.prompt ? spec.prompt.default : undefined;
+            if (def !== undefined) {
+              options[spec.name] = def;
+              continue;
+            }
+            if (!process.stdin.isTTY) continue;
+          }
           options[spec.name] = await cliPrompt(spec.prompt as PromptSchema<unknown>);
         }
         await engine.run(

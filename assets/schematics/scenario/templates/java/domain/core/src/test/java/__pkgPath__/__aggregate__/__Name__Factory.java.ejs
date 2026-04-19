@@ -1,0 +1,40 @@
+package <%= basePackage %>.<%= aggregate %>;
+
+/**
+ * Wires the System Under Test for the "<%= humanName %>" behaviour.
+ *
+ * <p>The factory is the only place that knows which fakes to use, how
+ * many handlers to register, or how to construct the {@link <%= PortName %>}
+ * the test will call. Tests receive only the returned port; they never
+ * import concrete handler or adapter classes.
+ *
+ * <p>Fakes are always preferred over mocks. A fake lives alongside each
+ * secondary port (see {@code infrastructure/<port>/fake}).
+ */
+public final class <%= Name %>Factory {
+
+  private final <%= Name %>Scenario scenario;
+
+  private <%= Name %>Factory(<%= Name %>Scenario scenario) {
+    this.scenario = scenario;
+  }
+
+  /** Returns a factory seeded with the given scenario. */
+  public static <%= Name %>Factory from(<%= Name %>Scenario scenario) {
+    return new <%= Name %>Factory(scenario);
+  }
+
+  /**
+   * Builds the {@link <%= PortName %>} with fakes wired to the scenario
+   * data. Tests consume only this port.
+   */
+  public <%= PortName %> build() {
+    // TODO:
+    //   1. instantiate each required fake (e.g. UserRepositoryFake) and
+    //      preload it with scenario data.
+    //   2. instantiate the handler(s) under test, passing fakes.
+    //   3. construct the Mediator (or specific primary port) with the
+    //      Collection<Handler> and return it.
+    throw new UnsupportedOperationException("wire SUT");
+  }
+}
