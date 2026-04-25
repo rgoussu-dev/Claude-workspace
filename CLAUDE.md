@@ -150,8 +150,7 @@ src/
   util/
 assets/
   project/       # → <project>/.claude/ (CLAUDE.md, settings, hooks,
-                 #   commands, agents, skills — the entire kit)
-  conventions/   # language toolchain matrix (languages.json)
+                 #   commands, agents, skills, conventions — the kit)
   schematics/    # schematic templates (ejs)
 tests/           # vitest, Scenario + Factory + fakes
 bin/keel.js      # npm bin entry

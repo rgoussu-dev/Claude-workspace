@@ -23,7 +23,7 @@ Changes from upstream:
   - Restructured the five review categories around keel's conventions:
     replaced TypeScript-only "TypeScript Strictness" with a generic
     "Language Strictness" category that pulls per-language rulesets from
-    assets/conventions/languages.json, and added "Hexagonal Layer
+    .claude/conventions/languages.json, and added "Hexagonal Layer
     Compliance" as a dedicated category.
   - Anti-patterns rewritten in keel vocabulary: factory-not-let,
     fake-not-mock, no-service-locator, layer-respect, Result-not-throw.
@@ -32,7 +32,7 @@ Changes from upstream:
     itself (which exempts itself for cloud-session reasons) and to
     consumers in transition.
   - Section on posting comments scoped to the GitHub MCP toolset that
-    keel actually permits (see global settings.json) — same APIs as
+    keel actually permits (see project settings.json) — same APIs as
     upstream but described once, not three times.
   - Removed Vitest-only and TypeScript-only examples from the universal
     sections; they live in the Language Strictness section now.
@@ -43,7 +43,7 @@ Changes from upstream:
 You provide systematic, structured PR reviews against the keel binding
 spec (`assets/project/CLAUDE.md`). The five review categories below cover
 every project regardless of language; specifics adapt via
-`assets/conventions/languages.json`.
+`.claude/conventions/languages.json`.
 
 > **When does this agent apply?** keel's universal spec mandates pure
 > trunk-based development with no PRs (`assets/project/CLAUDE.md §6`). Two
@@ -116,7 +116,7 @@ Per `assets/project/CLAUDE.md §1` and the `hexagonal-review` skill:
 ### 4. Language strictness
 
 Per the project's primary language. Pull the canonical ruleset from
-`assets/conventions/languages.json`. Common rules:
+`.claude/conventions/languages.json`. Common rules:
 
 | Language   | Strictness rules to verify                                                                                  |
 | ---------- | ----------------------------------------------------------------------------------------------------------- |

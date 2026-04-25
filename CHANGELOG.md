@@ -22,17 +22,24 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- **`assets/global/` collapsed into `assets/project/`.** The packaged
-  asset tree no longer distinguishes scopes: `CLAUDE.md`, `agents/`,
-  `commands/`, and `skills/` moved from `assets/global/` to
-  `assets/project/`, and the permissions / env block from
-  `assets/global/settings.json` was merged into
-  `assets/project/settings.json` alongside the existing hooks.
-  Consumers see the merged bundle land in `<project>/.claude/`.
-- **Manifest schema.** The `scope` field is now optional on read and is
-  no longer written. Existing project manifests (which carried
-  `"scope": "project"`) continue to parse; the field is silently
-  dropped on the next `keel update`.
+- **`assets/global/` and `assets/conventions/` collapsed into
+  `assets/project/`.** The packaged asset tree no longer distinguishes
+  scopes: `CLAUDE.md`, `agents/`, `commands/`, and `skills/` moved from
+  `assets/global/` to `assets/project/`; the permissions / env block
+  from `assets/global/settings.json` was merged into
+  `assets/project/settings.json` alongside the existing hooks; and
+  `assets/conventions/languages.json` (the per-language toolchain
+  matrix consulted by hooks, agents, and slash commands) moved to
+  `assets/project/conventions/`. Consumers see the merged bundle land
+  in `<project>/.claude/`. Shipped agents and commands now reference
+  `.claude/conventions/languages.json` instead of the keel-repo path
+  `assets/conventions/languages.json`, which fixes a broken reference
+  for consumer projects.
+- **`doctor` foreign-file scan.** `conventions/` is now a managed
+  directory; foreign files dropped there are flagged.
+- **Manifest schema.** The `scope` field is removed (no read, no write).
+  Pre-release-only change; no migration is provided. Anyone with a stale
+  manifest carrying `scope` should rerun `keel install --force`.
 - **CLI help text** updated to describe the project-only behavior; the
   `keel doctor` summary line now reports a single audit instead of one
   per scope.

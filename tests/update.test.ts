@@ -76,7 +76,6 @@ describe('update()', () => {
     writeTarget('a.txt', oldContent);
     writeManifestFile(targetRoot, {
       kitVersion: '0.0.0',
-      scope: 'project',
       installedAt: '2000-01-01T00:00:00.000Z',
       updatedAt: '2000-01-01T00:00:00.000Z',
       entries: [
@@ -104,7 +103,6 @@ describe('update()', () => {
     writeTarget('b.txt', userEdited);
     writeManifestFile(targetRoot, {
       kitVersion: '0.0.0',
-      scope: 'project',
       installedAt: '2000-01-01T00:00:00.000Z',
       updatedAt: '2000-01-01T00:00:00.000Z',
       entries: [
@@ -138,7 +136,6 @@ describe('update()', () => {
     writeTarget('c.txt', preExisting);
     writeManifestFile(targetRoot, {
       kitVersion: '0.0.0',
-      scope: 'project',
       installedAt: '2000-01-01T00:00:00.000Z',
       updatedAt: '2000-01-01T00:00:00.000Z',
       entries: [], // no prior entry for c.txt
@@ -159,7 +156,6 @@ describe('update()', () => {
     writeTarget('orphan-mod.txt', orphanModified);
     writeManifestFile(targetRoot, {
       kitVersion: '0.0.0',
-      scope: 'project',
       installedAt: '2000-01-01T00:00:00.000Z',
       updatedAt: '2000-01-01T00:00:00.000Z',
       entries: [
@@ -202,7 +198,6 @@ describe('update()', () => {
     chmodSync(targetAbs, 0o644); // simulate loss of +x
     writeManifestFile(targetRoot, {
       kitVersion: '0.0.0',
-      scope: 'project',
       installedAt: '2000-01-01T00:00:00.000Z',
       updatedAt: '2000-01-01T00:00:00.000Z',
       entries: [

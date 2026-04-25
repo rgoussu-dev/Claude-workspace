@@ -42,6 +42,7 @@ That writes the kit into `<cwd>/.claude/`:
 ├── .keel-manifest.json    # tracks which files keel owns
 ├── agents/                # adr, learn, pr-reviewer, tdd-guardian
 ├── commands/              # /commit, /sync, /diff-review, /docs-check
+├── conventions/           # languages.json — per-language toolchain matrix
 ├── hooks/                 # format-on-edit, pre-commit-verify, …
 └── skills/                # hexagonal-review, mediator-pattern, …
 ```
@@ -141,6 +142,14 @@ Loaded by Claude Code only when relevant: `hexagonal-review`,
 
 `/commit`, `/sync`, `/diff-review`, `/docs-check`.
 
+### Language conventions
+
+`conventions/languages.json` is the canonical per-language toolchain
+matrix (formatter, linter, typecheck, test, mutation, doc-comment style)
+that the hooks, agents, and slash commands consult. Edit it to teach the
+kit about a language it doesn't yet know, or to override defaults for
+your project.
+
 ---
 
 ## Customizing your install
@@ -152,14 +161,19 @@ detects the edit (via the SHA recorded in the manifest) and:
 - if the kit has changed it, treats it as a conflict and asks (or keeps
   your version, with `--yes`).
 
-To stop tracking a file entirely, delete it from `.claude/`. On the
-next update, keel sees it's gone and stops shipping it.
+Deleting a kit-tracked file is **not** a way to opt out of it: on the
+next `keel update`, keel sees the file is missing and reinstalls it
+(it's still a shipped file). To genuinely drop a shipped file, the
+kit itself has to stop shipping it; once that happens, an unmodified
+local copy is removed by `update`, and a modified local copy is kept
+but un-tracked.
 
 To go further off-piste, add your own files alongside the kit's. Files
-keel has never installed are ignored by `update` and reported as
-`foreign` by `doctor` (non-zero exit). Putting your own files in a
-directory keel doesn't manage (anything outside `hooks/`, `commands/`,
-`skills/`, `agents/`) avoids that warning.
+keel has never installed are untouched by `update` and reported as
+`foreign` by `doctor` (non-zero exit) when they sit inside a managed
+directory (`hooks/`, `commands/`, `skills/`, `agents/`, `conventions/`).
+Put your own files outside those directories — anywhere else under
+`.claude/` — to avoid that warning.
 
 ---
 
@@ -206,8 +220,7 @@ src/
   util/
 assets/
   project/       # → <project>/.claude/ (CLAUDE.md, settings, hooks,
-                 #   commands, agents, skills)
-  conventions/   # language toolchain matrix
+                 #   commands, agents, skills, conventions)
   schematics/    # schematic templates (ejs)
 tests/           # vitest (Scenario + Factory + fakes)
 ```

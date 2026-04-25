@@ -21,20 +21,13 @@ export type ManifestEntry = z.infer<typeof ManifestEntrySchema>;
  * Tracks the kit version that produced the installation plus every file
  * owned by keel in this project. keel is project-scoped only — the user's
  * home directory is never touched.
- *
- * The legacy `scope` field (which used to distinguish `'project'` vs
- * `'global'` installs) is accepted but ignored when reading old manifests
- * and is no longer written.
  */
-export const ManifestSchema = z
-  .object({
-    kitVersion: z.string(),
-    installedAt: z.string(),
-    updatedAt: z.string(),
-    entries: z.array(ManifestEntrySchema),
-    scope: z.string().optional(),
-  })
-  .transform(({ scope: _scope, ...rest }) => rest);
+export const ManifestSchema = z.object({
+  kitVersion: z.string(),
+  installedAt: z.string(),
+  updatedAt: z.string(),
+  entries: z.array(ManifestEntrySchema),
+});
 
 export type Manifest = z.infer<typeof ManifestSchema>;
 

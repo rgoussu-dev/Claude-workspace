@@ -11,11 +11,11 @@ import path from 'node:path';
 export interface Paths {
   /** Project claude directory, e.g. `<cwd>/.claude`. */
   project(cwd: string): string;
-  /** Absolute path to a packaged asset root (e.g. `project`, `conventions`). */
+  /** Absolute path to a packaged asset root (e.g. `project`, `schematics`). */
   asset(kind: AssetKind): string;
 }
 
-export type AssetKind = 'project' | 'conventions' | 'schematics' | 'skills';
+export type AssetKind = 'project' | 'schematics' | 'skills';
 
 const __filename = fileURLToPath(import.meta.url);
 const packageRoot = path.resolve(path.dirname(__filename), '..', '..');

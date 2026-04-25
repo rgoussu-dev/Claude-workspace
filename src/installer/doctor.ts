@@ -17,8 +17,8 @@ export interface DoctorOptions {
  *  - missing   — file is tracked by the manifest but absent on disk.
  *  - modified  — file's sha256 no longer matches the manifest's record.
  *  - foreign   — file sits under a keel-managed directory (hooks/,
- *                commands/, skills/, agents/) but is not tracked by the
- *                manifest.
+ *                commands/, skills/, agents/, conventions/) but is not
+ *                tracked by the manifest.
  *
  * All three classes count as issues and cause a non-zero exit status.
  * If no manifest is found, that's not an error — it just means keel is
@@ -68,7 +68,7 @@ export async function doctor(opts: DoctorOptions): Promise<number> {
  */
 async function scanForeign(root: string, tracked: Set<string>): Promise<number> {
   let foreign = 0;
-  const managed = ['hooks', 'commands', 'skills', 'agents'];
+  const managed = ['hooks', 'commands', 'skills', 'agents', 'conventions'];
   for (const dir of managed) {
     const abs = path.join(root, dir);
     if (!(await fs.pathExists(abs))) continue;
