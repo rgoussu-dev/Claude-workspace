@@ -3,8 +3,8 @@
 Universal Claude Code workflow kit. Opinionated defaults for hexagonal
 architecture, trunk-based development, XP, and schematics-driven scaffolding.
 
-[![CI](https://github.com/rgoussu-dev/Claude-workspace/actions/workflows/ci.yml/badge.svg)](https://github.com/rgoussu-dev/Claude-workspace/actions/workflows/ci.yml)
-[![Release](https://github.com/rgoussu-dev/Claude-workspace/actions/workflows/release.yml/badge.svg)](https://github.com/rgoussu-dev/Claude-workspace/actions/workflows/release.yml)
+[![CI](https://github.com/rgoussu-dev/Keel/actions/workflows/ci.yml/badge.svg)](https://github.com/rgoussu-dev/Keel/actions/workflows/ci.yml)
+[![Release](https://github.com/rgoussu-dev/Keel/actions/workflows/release.yml/badge.svg)](https://github.com/rgoussu-dev/Keel/actions/workflows/release.yml)
 
 ---
 
