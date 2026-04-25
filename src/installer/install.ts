@@ -40,7 +40,7 @@ export interface InstallOptions {
  */
 export async function install(opts: InstallOptions): Promise<void> {
   const targetRoot = paths.project(opts.cwd);
-  const assetRoot = paths.asset('project');
+  const assetRoot = paths.claudeCoreTemplates();
 
   logger.info(`installing project assets → ${targetRoot}`);
 
@@ -78,7 +78,7 @@ export async function install(opts: InstallOptions): Promise<void> {
     }
     const hash = sha256(content);
     entries.push({
-      source: path.posix.join('project', file.relative.split(path.sep).join('/')),
+      source: path.posix.join('claude-core', file.relative.split(path.sep).join('/')),
       target: file.relative.split(path.sep).join('/'),
       sha256Shipped: hash,
       sha256Current: hash,

@@ -1,6 +1,7 @@
 import type { Engine } from '../engine/types.js';
 import { HomegrownEngine } from '../engine/homegrown.js';
 import { ciGithubSchematic } from './ci-github/factory.js';
+import { claudeCoreSchematic } from './claude-core/factory.js';
 import { executableRestSchematic } from './executable-rest/factory.js';
 import { gitInitSchematic } from './git-init/factory.js';
 import { gradleWrapperSchematic } from './gradle-wrapper/factory.js';
@@ -17,6 +18,7 @@ import { walkingSkeletonSchematic } from './walking-skeleton/factory.js';
 export function buildEngine(): Engine {
   const engine = new HomegrownEngine();
   engine.register(ciGithubSchematic);
+  engine.register(claudeCoreSchematic);
   engine.register(executableRestSchematic);
   engine.register(gitInitSchematic);
   engine.register(gradleWrapperSchematic);

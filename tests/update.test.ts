@@ -17,13 +17,14 @@ import { paths } from '../src/util/paths.js';
 import type { Manifest } from '../src/manifest/schema.js';
 
 /**
- * update() resolves asset paths via `paths.asset('project')`, which is
- * package-root relative. We override the resolver to point at a
- * test-controlled fake asset directory so each case stages its own
- * scenario without touching the real shipped assets.
+ * update() resolves the source of the universal scaffold via
+ * `paths.claudeCoreTemplates()`, which is package-root relative. We
+ * override the resolver to point at a test-controlled fake directory
+ * so each case stages its own scenario without touching the real
+ * shipped assets.
  */
 function withFakeAsset(dir: string): () => void {
-  const spy = vi.spyOn(paths, 'asset').mockImplementation(() => dir);
+  const spy = vi.spyOn(paths, 'claudeCoreTemplates').mockImplementation(() => dir);
   return () => spy.mockRestore();
 }
 

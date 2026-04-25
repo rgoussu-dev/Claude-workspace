@@ -37,7 +37,7 @@ export interface UpdateOptions {
  */
 export async function update(opts: UpdateOptions): Promise<void> {
   const targetRoot = paths.project(opts.cwd);
-  const assetRoot = paths.asset('project');
+  const assetRoot = paths.claudeCoreTemplates();
 
   const existing = await readManifest(targetRoot);
   if (!existing) {
@@ -112,7 +112,7 @@ export async function update(opts: UpdateOptions): Promise<void> {
       await restoreExecBit(file.targetAbs, relPosix);
     }
     newEntries.push({
-      source: path.posix.join('project', relPosix),
+      source: path.posix.join('claude-core', relPosix),
       target: relPosix,
       sha256Shipped: shippedHash,
       sha256Current: resolution === 'overwrite' ? shippedHash : currentHash,
