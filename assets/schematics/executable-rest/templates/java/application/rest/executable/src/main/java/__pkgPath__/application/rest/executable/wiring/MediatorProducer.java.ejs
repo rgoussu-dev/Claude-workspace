@@ -14,12 +14,13 @@ import java.util.List;
  * hand-authored handler list — no reflection, no annotation scanning, no
  * service locator. Adding a new action means adding its handler here.
  *
- * <p>Per the composition-root exception in {@code assets/global/CLAUDE.md}
- * §1, this module is the <em>only</em> application-layer code allowed to
- * import concrete {@code domain/core} classes (here: {@link RegistryMediator}
- * and {@link PingHandler}). All other application code must work through
- * {@code domain/kernel} (interfaces, sealed bases) and
- * {@code domain/contract} (concrete commands, DTOs) exclusively.
+ * <p>Per the composition-root exception documented in this project's
+ * root {@code CLAUDE.md} (§1), this module is the <em>only</em>
+ * application-layer code allowed to import concrete {@code domain/core}
+ * classes (here: {@link RegistryMediator} and {@link PingHandler}). All
+ * other application code must work through {@code domain/kernel}
+ * (interfaces, sealed bases) and {@code domain/contract} (concrete
+ * commands, DTOs) exclusively.
  */
 @ApplicationScoped
 public class MediatorProducer {
