@@ -37,9 +37,10 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   for consumer projects.
 - **`doctor` foreign-file scan.** `conventions/` is now a managed
   directory; foreign files dropped there are flagged.
-- **Manifest schema.** The `scope` field is removed (no read, no write).
-  Pre-release-only change; no migration is provided. Anyone with a stale
-  manifest carrying `scope` should rerun `keel install --force`.
+- **Manifest schema.** The `scope` field is removed from the schema (no
+  longer typed, no longer written). Old manifests that still carry a
+  `scope` key continue to parse — Zod silently strips unknown keys —
+  but the value is ignored everywhere.
 - **CLI help text** updated to describe the project-only behavior; the
   `keel doctor` summary line now reports a single audit instead of one
   per scope.

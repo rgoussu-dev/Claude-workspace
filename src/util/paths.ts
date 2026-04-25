@@ -15,7 +15,7 @@ export interface Paths {
   asset(kind: AssetKind): string;
 }
 
-export type AssetKind = 'project' | 'schematics' | 'skills';
+export type AssetKind = 'project' | 'schematics';
 
 const __filename = fileURLToPath(import.meta.url);
 const packageRoot = path.resolve(path.dirname(__filename), '..', '..');
