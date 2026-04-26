@@ -87,9 +87,13 @@ export async function applyContributions(inputs: ApplyInputs): Promise<ApplyResu
   const actions: Action[] = [];
 
   for (const adapter of inputs.adapters) {
-    const ctx = makeCtx(adapter, inputs);
+    const ctx = makeCtx(adapter, inputs.answers[adapter.id] ?? {}, {
+      manifest: inputs.manifest,
+      logger: inputs.logger,
+      cwd: inputs.cwd,
+    });
     const contribution = await adapter.contribute(ctx);
-    applyOne(adapter, contribution, inputs.tree);
+    applyContribution(adapter, contribution, inputs.tree);
     for (const t of contribution.tagsAdd ?? []) tagsAdded.add(t);
     if (contribution.agentic) agentic[adapter.id] = contribution.agentic;
     for (const a of contribution.actions ?? []) actions.push(a);
@@ -98,13 +102,29 @@ export async function applyContributions(inputs: ApplyInputs): Promise<ApplyResu
   return { tagsAdded: [...tagsAdded], agentic, actions };
 }
 
-function makeCtx(adapter: Adapter, inputs: ApplyInputs): Ctx {
+/** Inputs for {@link makeCtx}. */
+export interface CtxInputs {
+  readonly manifest: ManifestV2;
+  readonly logger: Logger;
+  readonly cwd: string;
+}
+
+/**
+ * Builds the Ctx an adapter sees during `contribute()`. Exposed so
+ * the install orchestrator can build a fresh Ctx per adapter against
+ * its running manifest snapshot, while keeping the same answer
+ * resolution semantics applyContributions uses for batch tests.
+ */
+export function makeCtx(
+  adapter: Adapter,
+  adapterAnswers: Readonly<Record<string, string>>,
+  ctx: CtxInputs,
+): Ctx {
   const declared = new Set((adapter.questions ?? []).map((q) => q.id));
-  const adapterAnswers = inputs.answers[adapter.id] ?? {};
   return {
-    logger: inputs.logger,
-    cwd: inputs.cwd,
-    manifest: inputs.manifest,
+    logger: ctx.logger,
+    cwd: ctx.cwd,
+    manifest: ctx.manifest,
     answer(questionId: string): string {
       if (!declared.has(questionId)) {
         throw new Error(
@@ -120,7 +140,13 @@ function makeCtx(adapter: Adapter, inputs: ApplyInputs): Ctx {
   };
 }
 
-function applyOne(adapter: Adapter, contribution: Contribution, tree: Tree): void {
+/**
+ * Applies a single Contribution to a Tree — file writes (with
+ * conflict detection) and chained patches. Exposed so the install
+ * orchestrator can interleave per-adapter manifest updates between
+ * applies.
+ */
+export function applyContribution(adapter: Adapter, contribution: Contribution, tree: Tree): void {
   for (const f of contribution.files ?? []) {
     if (tree.exists(f.path)) {
       throw new ContributionConflictError(

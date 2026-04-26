@@ -2,20 +2,19 @@
  * The `walking-skeleton` vertical — emits the thinnest end-to-end
  * runnable project for a given stack/arch combo.
  *
- * Today the vertical covers only the `entrypoint` dimension and ships
- * one adapter (`walking-skeleton/quarkus-cli-bootstrap`). The
- * dimensions list will grow as we add adapters for VCS bootstrap,
- * gradle wrapper, hexagonal layout, sample port + fake, scenario
- * test, IaC, and CI. Predicate-conditioned siblings will cover the
- * same dimensions for REST (`arch.server-http`) once that lands.
+ * Adapters in this vertical compose by predicate: the bootstrap
+ * picks the entrypoint shape (Quarkus CLI today; REST and others
+ * later), and shared adapters like `sample-port-fake` add the
+ * hexagonal niceties wherever they apply.
  */
 
 import { quarkusCliBootstrapAdapter } from '../adapters/quarkus-cli-bootstrap.js';
+import { samplePortFakeAdapter } from '../adapters/sample-port-fake.js';
 import type { Vertical } from '../types.js';
 
 export const walkingSkeletonVertical: Vertical = {
   id: 'walking-skeleton',
   description: 'Greenfield project skeleton with a runnable end-to-end slice.',
-  dimensions: ['entrypoint'],
-  adapters: [quarkusCliBootstrapAdapter],
+  dimensions: ['entrypoint', 'port-example'],
+  adapters: [quarkusCliBootstrapAdapter, samplePortFakeAdapter],
 };

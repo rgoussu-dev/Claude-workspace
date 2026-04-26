@@ -114,6 +114,44 @@ describe('walking-skeleton vertical (Quarkus CLI)', () => {
     expect(settings).toContain('include(":infrastructure:cli")');
   });
 
+  it('emits the sample Clock port and FakeClock module, patching settings.gradle.kts', async () => {
+    const { tree, cwd } = await installWith(baseTags('arch.cli'));
+    cwds.push(cwd);
+
+    const port = tree
+      .read('domain/contract/src/main/java/com/example/contract/Clock.java')
+      ?.toString();
+    expect(port).toContain('public interface Clock');
+
+    const fake = tree
+      .read('infrastructure/clock/fake/src/main/java/com/example/clock/fake/FakeClock.java')
+      ?.toString();
+    expect(fake).toContain('public final class FakeClock implements Clock');
+
+    const fakeTest = tree.read(
+      'infrastructure/clock/fake/src/test/java/com/example/clock/fake/FakeClockTest.java',
+    );
+    expect(fakeTest).not.toBeNull();
+
+    const settings = tree.read('settings.gradle.kts')?.toString() ?? '';
+    expect(settings).toContain('include(":infrastructure:clock:fake")');
+  });
+
+  it('reuses bootstrap basePackage for the sample-port-fake adapter without re-prompting', async () => {
+    const { tree, cwd } = await installWith(baseTags('arch.cli'), {
+      'walking-skeleton/quarkus-cli-bootstrap': {
+        basePackage: 'com.acme.tooling',
+        projectName: 'shipper',
+      },
+    });
+    cwds.push(cwd);
+
+    const port = tree
+      .read('domain/contract/src/main/java/com/acme/tooling/contract/Clock.java')
+      ?.toString();
+    expect(port).toContain('package com.acme.tooling.contract;');
+  });
+
   it('substitutes basePackage and projectName from sticky answers', async () => {
     const { tree, cwd } = await installWith(baseTags('arch.cli'), {
       'walking-skeleton/quarkus-cli-bootstrap': {

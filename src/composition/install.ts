@@ -4,25 +4,36 @@
  *
  * Pipeline:
  *   1. `resolveVertical` — predicate match → topo sort → coverage check.
- *   2. `resolveAdapterAnswers` per adapter — answer the user's choice
- *      points (sticky memory, non-interactive default, or prompt).
- *   3. `applyContributions` — write files, apply patches, aggregate
- *      tagsAdd and agentic bundles.
- *   4. Build the next manifest snapshot — tags merged, vertical
- *      recorded as installed, answer updates merged, `updatedAt`
- *      bumped.
+ *   2. For each adapter in order:
+ *        a. resolve its questions against the running manifest's
+ *           sticky answers (or prompt / default);
+ *        b. fold the resolved answers and any tags promoted by
+ *           prior adapters into a *running manifest snapshot* —
+ *           every subsequent adapter's `ctx.manifest` reflects this
+ *           snapshot, so adapters can read upstream choices (e.g.
+ *           `basePackage` from the bootstrap) without re-asking;
+ *        c. invoke `adapter.contribute(ctx)` to get a Contribution;
+ *        d. apply files/patches against the Tree; collect actions
+ *           and agentic bundles for the caller; fold `tagsAdd` into
+ *           the running manifest.
+ *   3. Record the vertical as installed and bump `updatedAt`.
  *
- * The function is pure with respect to disk: it mutates the supplied
- * Tree (in memory) and returns the next manifest. The caller commits
- * both — `tree.commit()` to write files, `writeManifestV2` to persist
- * the manifest. Splitting commit from compute lets `keel install`
- * preview a dry-run before touching anything.
+ * Pure with respect to disk: mutates the supplied Tree in memory and
+ * returns the next manifest. The caller commits both.
  */
 
 import { resolveAdapterAnswers, type AnswerMode, type Prompt } from './answers.js';
-import { applyContributions, type ApplyResult } from './apply.js';
+import { applyContribution, makeCtx, type ApplyResult } from './apply.js';
 import { resolveVertical } from './resolver.js';
-import type { InstalledVertical, ManifestV2, Tag, Tree, Vertical } from './types.js';
+import type {
+  Action,
+  AgenticBundle,
+  InstalledVertical,
+  ManifestV2,
+  Tag,
+  Tree,
+  Vertical,
+} from './types.js';
 import type { Logger } from '../util/log.js';
 
 /** Inputs to `installVertical`. */
@@ -51,62 +62,85 @@ export async function installVertical(
 ): Promise<InstallVerticalResult> {
   const ordered = resolveVertical(inputs.vertical, inputs.manifest.tags);
 
-  const answers: Record<string, Record<string, string>> = {};
-  const updates: Record<string, Record<string, string>> = {};
+  let running: ManifestV2 = inputs.manifest;
+  const collectedActions: Action[] = [];
+  const collectedAgentic: Record<string, AgenticBundle> = {};
+  const allTagsAdded = new Set<Tag>();
+
   for (const adapter of ordered) {
-    const stored = inputs.manifest.answers[adapter.id] ?? {};
-    const r = await resolveAdapterAnswers(adapter, stored, inputs.mode, inputs.prompt);
-    answers[adapter.id] = r.answers;
-    if (Object.keys(r.updates).length > 0) updates[adapter.id] = r.updates;
+    const stored = running.answers[adapter.id] ?? {};
+    const resolution = await resolveAdapterAnswers(adapter, stored, inputs.mode, inputs.prompt);
+
+    running = foldAnswers(running, adapter.id, resolution.answers, resolution.updates);
+
+    const ctx = makeCtx(adapter, resolution.answers, {
+      manifest: running,
+      logger: inputs.logger,
+      cwd: inputs.cwd,
+    });
+    const contribution = await adapter.contribute(ctx);
+    applyContribution(adapter, contribution, inputs.tree);
+
+    if (contribution.tagsAdd && contribution.tagsAdd.length > 0) {
+      running = foldTags(running, contribution.tagsAdd);
+      for (const t of contribution.tagsAdd) allTagsAdded.add(t);
+    }
+    for (const a of contribution.actions ?? []) collectedActions.push(a);
+    if (contribution.agentic) collectedAgentic[adapter.id] = contribution.agentic;
   }
 
-  const applyResult = await applyContributions({
-    adapters: ordered,
-    answers,
-    manifest: inputs.manifest,
-    tree: inputs.tree,
-    logger: inputs.logger,
-    cwd: inputs.cwd,
-  });
+  const final = recordVertical(running, inputs.vertical, inputs.now());
 
   return {
-    manifest: nextManifest(
-      inputs.manifest,
-      inputs.vertical,
-      applyResult.tagsAdded,
-      updates,
-      inputs.now(),
-    ),
-    applyResult,
+    manifest: final,
+    applyResult: {
+      tagsAdded: [...allTagsAdded],
+      agentic: collectedAgentic,
+      actions: collectedActions,
+    },
   };
 }
 
-function nextManifest(
-  current: ManifestV2,
-  vertical: Vertical,
-  tagsAdded: readonly Tag[],
-  answerUpdates: Readonly<Record<string, Record<string, string>>>,
-  now: string,
+function foldAnswers(
+  manifest: ManifestV2,
+  adapterId: string,
+  resolved: Readonly<Record<string, string>>,
+  updates: Readonly<Record<string, string>>,
 ): ManifestV2 {
-  const mergedTags = [...new Set([...current.tags, ...tagsAdded])].sort();
-
-  const verticals: InstalledVertical[] = current.verticals.some((v) => v.id === vertical.id)
-    ? [...current.verticals]
-    : [...current.verticals, { id: vertical.id, installedAt: now }];
-
-  const mergedAnswers: Record<string, Record<string, string>> = {};
-  for (const [adapterId, qa] of Object.entries(current.answers)) {
-    mergedAnswers[adapterId] = { ...qa };
-  }
-  for (const [adapterId, qa] of Object.entries(answerUpdates)) {
-    mergedAnswers[adapterId] = { ...(mergedAnswers[adapterId] ?? {}), ...qa };
-  }
-
+  // The full resolution map includes both already-stored sticky
+  // answers (returned for the running snapshot so downstream
+  // adapters can read them) and newly-supplied ones (the `updates`
+  // subset, which is what gets persisted on a sticky question's
+  // first ask). For the running snapshot, fold the full resolved
+  // map so adapters always see the same view; the persistence
+  // distinction (sticky-vs-repeat) shows up in `answer.persist` and
+  // is preserved here implicitly because `updates` is a subset of
+  // `resolved`.
+  void updates;
+  if (Object.keys(resolved).length === 0) return manifest;
   return {
-    ...current,
-    tags: mergedTags,
+    ...manifest,
+    answers: {
+      ...manifest.answers,
+      [adapterId]: { ...(manifest.answers[adapterId] ?? {}), ...resolved },
+    },
+  };
+}
+
+function foldTags(manifest: ManifestV2, tagsAdd: readonly Tag[]): ManifestV2 {
+  return {
+    ...manifest,
+    tags: [...new Set([...manifest.tags, ...tagsAdd])].sort(),
+  };
+}
+
+function recordVertical(manifest: ManifestV2, vertical: Vertical, now: string): ManifestV2 {
+  const verticals: InstalledVertical[] = manifest.verticals.some((v) => v.id === vertical.id)
+    ? [...manifest.verticals]
+    : [...manifest.verticals, { id: vertical.id, installedAt: now }];
+  return {
+    ...manifest,
     verticals,
-    answers: mergedAnswers,
     updatedAt: now,
   };
 }
