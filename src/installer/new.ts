@@ -22,7 +22,7 @@ import { logger as defaultLogger, type Logger } from '../util/log.js';
 import { paths } from '../util/paths.js';
 import { InMemoryTree } from '../engine/tree.js';
 import { installVertical } from '../composition/install.js';
-import { runActions } from '../composition/actions.js';
+import { runActions, type RunActionsInputs } from '../composition/actions.js';
 import { writeManifestV2 } from '../manifest/store-v2.js';
 import { emptyManifestV2 } from '../manifest/schema-v2.js';
 import { cliPrompt, type Prompt } from '../composition/answers.js';
@@ -45,6 +45,12 @@ export interface NewInputs {
   readonly now?: () => string;
   /** keel version recorded into the manifest; defaults to `package.json` value. */
   readonly keelVersion?: string;
+  /**
+   * Action runner — injected so tests can stub deferred side effects
+   * that would otherwise spawn external processes (e.g. `gradle
+   * wrapper`). Defaults to the real {@link runActions}.
+   */
+  readonly runActions?: (inputs: RunActionsInputs) => Promise<void>;
 }
 
 export async function newProject(inputs: NewInputs): Promise<void> {
@@ -94,7 +100,8 @@ export async function newProject(inputs: NewInputs): Promise<void> {
   }
 
   await tree.commit();
-  await runActions({
+  const runner = inputs.runActions ?? runActions;
+  await runner({
     actions: collectedActions,
     cwd: inputs.cwd,
     logger: log,

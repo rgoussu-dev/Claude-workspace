@@ -14,7 +14,19 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { newProject } from '../../src/installer/new.js';
 import { readManifestV2 } from '../../src/manifest/store-v2.js';
 import { paths } from '../../src/util/paths.js';
+import { runActions, type RunActionsInputs } from '../../src/composition/actions.js';
 import type { Prompt } from '../../src/composition/answers.js';
+
+/**
+ * Skips actions whose id is in `skip`; passes the rest through to the
+ * real runner. Lets the integration test exercise `git-init` end-to-end
+ * while sidestepping `gradle wrapper`, which would spawn Gradle.
+ */
+const runActionsExcept = (skip: readonly string[]) => {
+  const blocked = new Set(skip);
+  return (inputs: RunActionsInputs) =>
+    runActions({ ...inputs, actions: inputs.actions.filter((a) => !blocked.has(a.id)) });
+};
 
 const silent = {
   info: () => {},
@@ -58,6 +70,7 @@ describe('newProject (keel new)', () => {
       prompt: noPrompt,
       now: () => '2026-04-26T12:00:00Z',
       keelVersion: '0.4.0-alpha',
+      runActions: runActionsExcept(['walking-skeleton/gradle-wrapper']),
     });
 
     // Tree-emitted files landed on disk.
