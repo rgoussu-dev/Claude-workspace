@@ -6,13 +6,14 @@
 import path from 'node:path';
 import fs from 'fs-extra';
 import { MANIFEST_FILENAME } from './schema.js';
-import { type ManifestV2Data, ManifestV2Schema, parseManifest } from './schema-v2.js';
+import { ManifestV2Schema, parseManifest } from './schema-v2.js';
+import type { ManifestV2 } from '../composition/types.js';
 
 /**
  * Reads the manifest from `<scopeRoot>/.keel-manifest.json`. Returns
  * null on a fresh project. Migrates v1 manifests transparently.
  */
-export async function readManifestV2(scopeRoot: string): Promise<ManifestV2Data | null> {
+export async function readManifestV2(scopeRoot: string): Promise<ManifestV2 | null> {
   const file = path.join(scopeRoot, MANIFEST_FILENAME);
   if (!(await fs.pathExists(file))) return null;
   const raw = await fs.readJson(file);
@@ -23,7 +24,7 @@ export async function readManifestV2(scopeRoot: string): Promise<ManifestV2Data 
  * Writes the v2 manifest. Validates against the v2 schema before
  * write so a malformed in-memory state can't poison the file.
  */
-export async function writeManifestV2(scopeRoot: string, manifest: ManifestV2Data): Promise<void> {
+export async function writeManifestV2(scopeRoot: string, manifest: ManifestV2): Promise<void> {
   const validated = ManifestV2Schema.parse(manifest);
   await fs.ensureDir(scopeRoot);
   await fs.writeJson(path.join(scopeRoot, MANIFEST_FILENAME), validated, { spaces: 2 });

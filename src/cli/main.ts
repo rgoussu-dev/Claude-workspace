@@ -2,6 +2,8 @@ import { Command } from 'commander';
 import { install } from '../installer/install.js';
 import { update } from '../installer/update.js';
 import { doctor } from '../installer/doctor.js';
+import { newProject } from '../installer/new.js';
+import { listStackIds } from '../composition/stacks.js';
 import { logger } from '../util/log.js';
 import { buildEngine } from '../schematics/registry.js';
 import { cliPrompt } from '../engine/homegrown.js';
@@ -16,6 +18,36 @@ export async function main(argv: string[]): Promise<void> {
     .name('keel')
     .description('Universal Claude Code workflow kit — hexagonal, trunk-based, XP.')
     .version(await readPackageVersion());
+
+  program
+    .command('new')
+    .description(
+      `Bootstrap a greenfield project from a stack preset (available: ${listStackIds().join(', ')}).`,
+    )
+    .option('-s, --stack <id>', 'stack preset id', 'quarkus-cli')
+    .option('-y, --yes', 'non-interactive — use defaults for unanswered questions', false)
+    .option('--dry-run', 'print the plan without writing any file', false)
+    .option(
+      '--set <kv...>',
+      'preset an answer as adapterId:questionId=value (repeatable)',
+      [] as string[],
+    )
+    .action(
+      async (opts: {
+        stack: string;
+        yes: boolean;
+        dryRun: boolean;
+        set: string[];
+      }): Promise<void> => {
+        await newProject({
+          cwd: process.cwd(),
+          stack: opts.stack,
+          answers: parseSetAnswers(opts.set),
+          interactive: !opts.yes,
+          dryRun: opts.dryRun,
+        });
+      },
+    );
 
   program
     .command('install')
@@ -109,6 +141,31 @@ function parseKv(pairs: string[]): Record<string, string> {
       throw new Error(`--set expects key=value, got: ${raw}`);
     }
     out[raw.slice(0, eq)] = raw.slice(eq + 1);
+  }
+  return out;
+}
+
+/**
+ * Parses `--set adapterId:questionId=value` entries into the nested
+ * shape used by the manifest's `answers` map. Allows the user to
+ * supply sticky answers from the command line so `keel new --yes`
+ * doesn't have to fall back to every default.
+ */
+function parseSetAnswers(pairs: string[]): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  for (const raw of pairs) {
+    const eq = raw.indexOf('=');
+    if (eq <= 0) throw new Error(`--set expects adapterId:questionId=value, got: ${raw}`);
+    const left = raw.slice(0, eq);
+    const value = raw.slice(eq + 1);
+    const colon = left.indexOf(':');
+    if (colon <= 0) {
+      throw new Error(`--set expects adapterId:questionId=value, got: ${raw}`);
+    }
+    const adapterId = left.slice(0, colon);
+    const questionId = left.slice(colon + 1);
+    if (!out[adapterId]) out[adapterId] = {};
+    out[adapterId][questionId] = value;
   }
   return out;
 }
