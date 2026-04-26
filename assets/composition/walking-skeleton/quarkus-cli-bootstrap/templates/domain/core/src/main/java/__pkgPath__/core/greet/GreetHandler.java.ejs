@@ -1,0 +1,17 @@
+package <%= basePackage %>.core.greet;
+
+import <%= basePackage %>.contract.Command;
+import <%= basePackage %>.contract.Handler;
+
+public final class GreetHandler implements Handler<GreetCommand, String> {
+
+    @Override
+    public boolean supports(Command<?> command) {
+        return command instanceof GreetCommand;
+    }
+
+    @Override
+    public String handle(GreetCommand command) {
+        return "Hello, " + command.name() + "!";
+    }
+}

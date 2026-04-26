@@ -63,9 +63,21 @@ describe('newProject (keel new)', () => {
     // Tree-emitted files landed on disk.
     expect(await fs.pathExists(path.join(cwd, 'build.gradle.kts'))).toBe(true);
     expect(await fs.pathExists(path.join(cwd, 'settings.gradle.kts'))).toBe(true);
-    expect(await fs.pathExists(path.join(cwd, 'src/main/java/com/acme/cli/cli/Main.java'))).toBe(
-      true,
-    );
+    expect(
+      await fs.pathExists(
+        path.join(cwd, 'infrastructure/cli/src/main/java/com/acme/cli/cli/Main.java'),
+      ),
+    ).toBe(true);
+    expect(
+      await fs.pathExists(
+        path.join(cwd, 'domain/contract/src/main/java/com/acme/cli/contract/Mediator.java'),
+      ),
+    ).toBe(true);
+    expect(
+      await fs.pathExists(
+        path.join(cwd, 'domain/core/src/main/java/com/acme/cli/core/greet/GreetHandler.java'),
+      ),
+    ).toBe(true);
 
     // Action ran: git repo exists, branch is main.
     expect(await fs.pathExists(path.join(cwd, '.git'))).toBe(true);

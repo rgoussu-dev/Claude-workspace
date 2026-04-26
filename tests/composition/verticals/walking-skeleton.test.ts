@@ -74,7 +74,7 @@ afterEach(async () => {
 });
 
 describe('walking-skeleton vertical (Quarkus CLI)', () => {
-  it('renders the minimum runnable project shell with default answers', async () => {
+  it('renders the minimum runnable hexagonal project with default answers', async () => {
     const { tree, cwd } = await installWith(baseTags('arch.cli'));
     cwds.push(cwd);
 
@@ -84,14 +84,34 @@ describe('walking-skeleton vertical (Quarkus CLI)', () => {
       'build.gradle.kts',
       'gradle.properties',
       'settings.gradle.kts',
-      'src/main/java/com/example/cli/HelloCommand.java',
-      'src/main/java/com/example/cli/Main.java',
-      'src/main/resources/application.properties',
-      'src/test/java/com/example/cli/HelloCommandTest.java',
+      'domain/contract/build.gradle.kts',
+      'domain/contract/src/main/java/com/example/contract/Command.java',
+      'domain/contract/src/main/java/com/example/contract/Handler.java',
+      'domain/contract/src/main/java/com/example/contract/Mediator.java',
+      'domain/core/build.gradle.kts',
+      'domain/core/src/main/java/com/example/core/DefaultMediator.java',
+      'domain/core/src/main/java/com/example/core/greet/GreetCommand.java',
+      'domain/core/src/main/java/com/example/core/greet/GreetHandler.java',
+      'domain/core/src/test/java/com/example/core/greet/GreetTest.java',
+      'infrastructure/cli/build.gradle.kts',
+      'infrastructure/cli/src/main/java/com/example/cli/HelloCommand.java',
+      'infrastructure/cli/src/main/java/com/example/cli/Main.java',
+      'infrastructure/cli/src/main/java/com/example/cli/MediatorProducer.java',
+      'infrastructure/cli/src/main/resources/application.properties',
+      'infrastructure/cli/src/test/java/com/example/cli/HelloCommandTest.java',
     ];
     for (const p of expected) {
       expect(tree.read(p), `missing ${p}`).not.toBeNull();
     }
+  });
+
+  it('settings.gradle.kts wires the three subprojects', async () => {
+    const { tree, cwd } = await installWith(baseTags('arch.cli'));
+    cwds.push(cwd);
+    const settings = tree.read('settings.gradle.kts')?.toString() ?? '';
+    expect(settings).toContain('include(":domain:contract")');
+    expect(settings).toContain('include(":domain:core")');
+    expect(settings).toContain('include(":infrastructure:cli")');
   });
 
   it('substitutes basePackage and projectName from sticky answers', async () => {
@@ -106,12 +126,21 @@ describe('walking-skeleton vertical (Quarkus CLI)', () => {
     const settings = tree.read('settings.gradle.kts')?.toString() ?? '';
     expect(settings).toContain('rootProject.name = "shipper"');
 
-    const main = tree.read('src/main/java/com/acme/tooling/cli/Main.java')?.toString() ?? '';
+    const main =
+      tree.read('infrastructure/cli/src/main/java/com/acme/tooling/cli/Main.java')?.toString() ??
+      '';
     expect(main).toContain('package com.acme.tooling.cli;');
     expect(main).toContain('public static final String NAME = "shipper";');
 
     const build = tree.read('build.gradle.kts')?.toString() ?? '';
     expect(build).toContain('group = "com.acme.tooling"');
+
+    const helloCmd =
+      tree
+        .read('infrastructure/cli/src/main/java/com/acme/tooling/cli/HelloCommand.java')
+        ?.toString() ?? '';
+    expect(helloCmd).toContain('import com.acme.tooling.contract.Mediator;');
+    expect(helloCmd).toContain('import com.acme.tooling.core.greet.GreetCommand;');
   });
 
   it('hard-fails when arch.cli is absent (no adapter covers entrypoint)', async () => {

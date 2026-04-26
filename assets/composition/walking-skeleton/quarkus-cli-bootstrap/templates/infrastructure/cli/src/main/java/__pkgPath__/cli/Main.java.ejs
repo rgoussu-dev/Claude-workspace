@@ -5,9 +5,8 @@ import picocli.CommandLine.Command;
 
 /**
  * Top-level entry point for the {@value #NAME} CLI. Subcommands are
- * declared on the {@link Command#subcommands} attribute; add new ones
- * by writing a Runnable annotated with {@link Command} and listing
- * its class here.
+ * declared on {@link Command#subcommands}; add a new one by writing
+ * a Runnable annotated with {@link Command} and listing it here.
  */
 @TopCommand
 @Command(

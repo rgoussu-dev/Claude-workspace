@@ -13,7 +13,7 @@ class HelloCommandTest {
 
     @Test
     @Launch({"hello", "--name", "Romain"})
-    void greetsByName(LaunchResult result) {
+    void greetsByNameThroughMediator(LaunchResult result) {
         assertEquals(0, result.exitCode());
         assertTrue(result.getOutput().contains("Hello, Romain!"));
     }

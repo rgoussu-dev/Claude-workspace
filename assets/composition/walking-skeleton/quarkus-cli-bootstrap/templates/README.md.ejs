@@ -1,11 +1,23 @@
 # <%= projectName %>
 
-Quarkus CLI walking skeleton scaffolded by keel.
+Quarkus CLI walking skeleton scaffolded by keel — hexagonal, mediator-driven.
+
+## Layout
+
+```
+domain/
+  contract/    — Command, Handler, Mediator interfaces (the kernel)
+  core/        — DefaultMediator + sample GreetCommand handler
+infrastructure/
+  cli/         — picocli + Quarkus, calls into the mediator
+```
 
 ## Run
 
 ```sh
-./gradlew --quiet --console=plain run --args="hello --name World"
+./gradlew :infrastructure:cli:quarkusDev
+# or once built:
+./gradlew :infrastructure:cli:run --args="hello --name World"
 ```
 
 ## Test
@@ -17,5 +29,5 @@ Quarkus CLI walking skeleton scaffolded by keel.
 ## Build a native binary
 
 ```sh
-./gradlew build -Dquarkus.package.type=native
+./gradlew :infrastructure:cli:build -Dquarkus.package.type=native
 ```

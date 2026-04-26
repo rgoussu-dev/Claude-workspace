@@ -1,0 +1,6 @@
+package <%= basePackage %>.core.greet;
+
+import <%= basePackage %>.contract.Command;
+
+/** Greet someone by name. The walking skeleton's only domain command. */
+public record GreetCommand(String name) implements Command<String> {}

@@ -1,21 +1,29 @@
 package <%= basePackage %>.cli;
 
+import jakarta.inject.Inject;
+
+import <%= basePackage %>.contract.Mediator;
+import <%= basePackage %>.core.greet.GreetCommand;
+
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/**
- * Sample subcommand. The walking skeleton ships with one runnable
- * command end-to-end (the test in `HelloCommandTest` proves it walks)
- * — replace it with real domain commands as the project grows.
- */
 @Command(name = "hello", description = "Print a friendly greeting.")
 public final class HelloCommand implements Runnable {
+
+    private final Mediator mediator;
 
     @Option(names = {"--name"}, defaultValue = "world", description = "Recipient of the greeting.")
     String name;
 
+    @Inject
+    public HelloCommand(Mediator mediator) {
+        this.mediator = mediator;
+    }
+
     @Override
     public void run() {
-        System.out.println("Hello, " + name + "!");
+        String greeting = mediator.dispatch(new GreetCommand(name));
+        System.out.println(greeting);
     }
 }
