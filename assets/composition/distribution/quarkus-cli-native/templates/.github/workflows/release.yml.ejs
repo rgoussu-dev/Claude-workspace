@@ -1,0 +1,66 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+<% targets.forEach((t) => { -%>
+          - target: <%= t.target %>
+            runs-on: <%= t.runner %>
+<% }); -%>
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: graalvm-community
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+
+      - name: Build native binary
+        run: ./gradlew :infrastructure:cli:build -Dquarkus.native.enabled=true --no-daemon --stacktrace
+
+      - name: Stage release artifact
+        run: |
+          mkdir -p staging
+          src=$(ls infrastructure/cli/build/*-runner 2>/dev/null | head -n1)
+          if [ -z "$src" ]; then
+            echo "no native runner produced under infrastructure/cli/build/" >&2
+            exit 1
+          fi
+          cp "$src" "staging/<%= projectName %>-${{ matrix.target }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: <%= projectName %>-${{ matrix.target }}
+          path: staging/<%= projectName %>-${{ matrix.target }}
+          if-no-files-found: error
+
+  publish:
+    name: publish github release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
