@@ -235,6 +235,37 @@ describe('install()', () => {
     }
   });
 
+  // Regression: CLAUDE.md is created by claude-core and then modified
+  // by claude-quarkus (which appends the addendum). Without per-writer
+  // tracking, both shipped and current hashes would be the composed
+  // content's hash, which makes update mistake the file for
+  // unmodified-by-the-user and silently overwrite it on the next bump.
+  it('records sha256Shipped as the first-writer content for composed files', async () => {
+    await install({
+      cwd: workDir,
+      force: false,
+      dryRun: false,
+      prompt: scriptedPrompt(javaQuarkusAnswers),
+      env: fullDevEnv,
+    });
+
+    const manifest = JSON.parse(
+      readFileSync(path.join(workDir, '.claude', '.keel-manifest.json'), 'utf8'),
+    ) as Manifest;
+    const claudeMdEntry = manifest.entries.find((e) => e.target === 'CLAUDE.md');
+    expect(claudeMdEntry).toBeDefined();
+    // Composition happened: the on-disk content is core + addendum,
+    // but sha256Shipped is just core's content — proves first-writer
+    // capture worked.
+    expect(claudeMdEntry!.sha256Shipped).not.toBe(claudeMdEntry!.sha256Current);
+
+    // Pure-core files (settings.json was only ever written by claude-core)
+    // still have shipped == current, since no later schematic touched them.
+    const settingsEntry = manifest.entries.find((e) => e.target === 'settings.json');
+    expect(settingsEntry).toBeDefined();
+    expect(settingsEntry!.sha256Shipped).toBe(settingsEntry!.sha256Current);
+  });
+
   it('honours --dry-run by leaving the workspace untouched', async () => {
     await install({
       cwd: workDir,

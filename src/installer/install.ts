@@ -99,8 +99,19 @@ export async function install(opts: InstallOptions): Promise<void> {
   const engine = buildEngine();
   const tree = new InMemoryTree(opts.cwd);
   const sources = new Map<string, string>();
+  const shippedHashes = new Map<string, string>();
 
-  await runOnto(engine, tree, opts.cwd, prompt, 'claude-core', {}, sources, opts.dryRun);
+  await runOnto(
+    engine,
+    tree,
+    opts.cwd,
+    prompt,
+    'claude-core',
+    {},
+    sources,
+    shippedHashes,
+    opts.dryRun,
+  );
   await runOnto(
     engine,
     tree,
@@ -109,6 +120,7 @@ export async function install(opts: InstallOptions): Promise<void> {
     choice.framework.claudeSchematic,
     {},
     sources,
+    shippedHashes,
     opts.dryRun,
   );
   if (choice.framework.walkingSkeleton && skeletonOptions) {
@@ -120,6 +132,7 @@ export async function install(opts: InstallOptions): Promise<void> {
       choice.framework.walkingSkeleton,
       skeletonOptions,
       sources,
+      shippedHashes,
       opts.dryRun,
     );
   }
@@ -140,7 +153,7 @@ export async function install(opts: InstallOptions): Promise<void> {
   await tree.commit();
 
   const now = new Date().toISOString();
-  const entries = await buildManifestEntries(opts.cwd, changes, sources, now);
+  const entries = await buildManifestEntries(opts.cwd, changes, sources, shippedHashes, now);
   const manifest: Manifest = {
     kitVersion: kitVersion(),
     installedAt: existing?.installedAt ?? now,
@@ -159,9 +172,13 @@ export async function install(opts: InstallOptions): Promise<void> {
 /**
  * Runs a single schematic against the shared tree, with a Context whose
  * `invoke` recurses through the same tree (so composing schematics like
- * `walking-skeleton` see their sub-schematics' writes). Files newly
- * created by this run are recorded in `sources` so the manifest later
- * knows which schematic produced each file.
+ * `walking-skeleton` see their sub-schematics' writes). For each path
+ * this run is the first to create, the schematic name is recorded in
+ * `sources` and the at-creation content hash in `shippedHashes`. The
+ * latter is what the manifest later stamps as `sha256Shipped` so an
+ * `update` doesn't mistake a sibling schematic's composition (e.g.
+ * `claude-quarkus` appending an addendum to `claude-core`'s
+ * `CLAUDE.md`) for an unmodified file and silently strip it.
  */
 async function runOnto(
   engine: Engine,
@@ -171,6 +188,7 @@ async function runOnto(
   name: string,
   options: Options,
   sources: Map<string, string>,
+  shippedHashes: Map<string, string>,
   dryRun: boolean,
 ): Promise<void> {
   const schematic = engine.get(name);
@@ -192,9 +210,10 @@ async function runOnto(
   await schematic.run(tree, options, ctx);
 
   for (const change of tree.changes()) {
-    if (!before.has(change.path) && !sources.has(change.path)) {
-      sources.set(change.path, name);
-    }
+    if (before.has(change.path) || sources.has(change.path)) continue;
+    sources.set(change.path, name);
+    const content = tree.read(change.path);
+    if (content) shippedHashes.set(change.path, sha256(content));
   }
 }
 
@@ -254,6 +273,7 @@ async function buildManifestEntries(
   cwd: string,
   changes: readonly TreeChange[],
   sources: Map<string, string>,
+  shippedHashes: Map<string, string>,
   now: string,
 ): Promise<ManifestEntry[]> {
   const entries: ManifestEntry[] = [];
@@ -264,13 +284,20 @@ async function buildManifestEntries(
     const target = change.path.slice(claudePrefix.length);
     const abs = path.join(cwd, change.path);
     const content = await fs.readFile(abs);
-    const hash = sha256(content);
+    const currentHash = sha256(content);
     const sourceSchematic = sources.get(change.path) ?? 'claude-core';
+    // sha256Shipped is the first writer's content. For files composed
+    // by a later schematic (e.g. claude-quarkus appending the addendum
+    // to claude-core's CLAUDE.md), it differs from sha256Current — that
+    // gap signals "non-trivial composition" to `keel update`, which
+    // then routes the file through the user-modified-conflict path
+    // instead of silently overwriting and dropping the addendum.
+    const shippedHash = shippedHashes.get(change.path) ?? currentHash;
     entries.push({
       source: path.posix.join(sourceSchematic, target),
       target,
-      sha256Shipped: hash,
-      sha256Current: hash,
+      sha256Shipped: shippedHash,
+      sha256Current: currentHash,
       installedAt: now,
     });
   }

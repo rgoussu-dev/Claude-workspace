@@ -263,6 +263,38 @@ describe('update()', () => {
     });
   });
 
+  // Regression: a file composed by multiple schematics (e.g. CLAUDE.md
+  // = claude-core + claude-quarkus addendum) records sha256Shipped as
+  // the first writer's content. update sees the on-disk hash differ
+  // from sha256Shipped, treats the file as user-modified, and (in
+  // non-interactive mode) keeps it. This stops update silently
+  // dropping the addendum on the next kit bump.
+  it('preserves stack-composed edits (sha256Shipped !== sha256Current) under non-interactive update', async () => {
+    const coreContent = 'core only\n';
+    const composedContent = 'core only\n\n<!-- addendum -->\nstack added me\n';
+    const newCoreContent = 'core only — slightly tweaked\n';
+    writeAsset('CLAUDE.md', newCoreContent);
+    writeTarget('CLAUDE.md', composedContent);
+    writeManifestFile(targetRoot, {
+      kitVersion: '0.0.0',
+      installedAt: '2000-01-01T00:00:00.000Z',
+      updatedAt: '2000-01-01T00:00:00.000Z',
+      entries: [
+        {
+          source: 'claude-core/CLAUDE.md',
+          target: 'CLAUDE.md',
+          sha256Shipped: sha256(coreContent), // first writer's hash
+          sha256Current: sha256(composedContent), // final on-disk hash
+          installedAt: '2000-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+
+    await update({ cwd: projectCwd, dryRun: false, nonInteractive: true });
+
+    expect(readFileSync(path.join(targetRoot, 'CLAUDE.md'), 'utf8')).toBe(composedContent);
+  });
+
   it('stamps the new claude-core source prefix on entries it (re)writes', async () => {
     const newContent = 'fresh\n';
     writeAsset('z.txt', newContent);
