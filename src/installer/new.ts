@@ -24,11 +24,10 @@ import { InMemoryTree } from '../engine/tree.js';
 import { installVertical } from '../composition/install.js';
 import { runActions, type RunActionsInputs } from '../composition/actions.js';
 import { writeManifestV2 } from '../manifest/store-v2.js';
-import { emptyManifestV2 } from '../manifest/schema-v2.js';
+import { emptyManifestV2, MANIFEST_FILENAME } from '../manifest/schema-v2.js';
 import { cliPrompt, type Prompt } from '../composition/answers.js';
 import { getStack, listStackIds } from '../composition/stacks.js';
 import type { Action, ManifestV2 } from '../composition/types.js';
-import { MANIFEST_FILENAME } from '../manifest/schema.js';
 
 /** Inputs to {@link newProject}. */
 export interface NewInputs {

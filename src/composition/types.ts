@@ -14,7 +14,7 @@
  * are the contract every adapter author writes against.
  */
 
-import type { Tree } from '../engine/types.js';
+import type { Tree } from '../engine/tree.js';
 import type { Logger } from '../util/log.js';
 
 /**

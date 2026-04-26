@@ -2,9 +2,13 @@ import path from 'node:path';
 import os from 'node:os';
 import fs from 'fs-extra';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { emptyManifestV2, migrateV1, parseManifest } from '../../src/manifest/schema-v2.js';
+import {
+  emptyManifestV2,
+  MANIFEST_FILENAME,
+  migrateV1,
+  parseManifest,
+} from '../../src/manifest/schema-v2.js';
 import { readManifestV2, writeManifestV2 } from '../../src/manifest/store-v2.js';
-import { MANIFEST_FILENAME } from '../../src/manifest/schema.js';
 
 let tmp: string;
 
