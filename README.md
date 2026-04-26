@@ -1,7 +1,8 @@
 # keel
 
 Universal Claude Code workflow kit. Opinionated defaults for hexagonal
-architecture, trunk-based development, XP, and schematics-driven scaffolding.
+architecture, trunk-based development, XP, and composition-driven
+project scaffolding.
 
 [![CI](https://github.com/rgoussu-dev/Keel/actions/workflows/ci.yml/badge.svg)](https://github.com/rgoussu-dev/Keel/actions/workflows/ci.yml)
 [![Release](https://github.com/rgoussu-dev/Keel/actions/workflows/release.yml/badge.svg)](https://github.com/rgoussu-dev/Keel/actions/workflows/release.yml)
@@ -12,211 +13,112 @@ architecture, trunk-based development, XP, and schematics-driven scaffolding.
 
 Claude Code is much more useful when it shares your team's conventions.
 keel ships a curated, opinionated set of those conventions — architecture,
-testing, workflow, infra — as a Claude Code project bundle: a `CLAUDE.md`
-binding spec, on-demand skills, agents, slash commands, hooks, and
-permission/env defaults. One command installs the bundle into your
-project; subsequent updates merge cleanly with anything you've customized.
+testing, workflow, infra — composed into your project from a small set
+of capability tags. The composition engine resolves a stack into the
+right adapters, asks only the questions it needs to, and emits a
+runnable project plus the agentic affordances Claude needs to work
+inside it.
 
-**keel is project-scoped only.** It installs into `<project>/.claude/` and
-never reads, writes, or otherwise touches `~/.claude` or any other global
-Claude Code configuration. Everything keel adds is checked into your
-repository, so the configuration travels with the code and is identical
-for every contributor and every Claude Code session.
+**keel is project-scoped only.** It writes into `<project>/.claude/`
+and never reads, writes, or otherwise touches `~/.claude` or any other
+global Claude Code configuration. Everything keel adds lives in your
+repository, so the configuration travels with the code.
 
 ---
 
 ## Quickstart
 
-Run from the root of the project you want to add keel to:
+Greenfield — bootstrap a Quarkus CLI project from scratch:
 
 ```sh
-npx @rgoussu.dev/keel install
+mkdir my-cli && cd my-cli
+npx @rgoussu.dev/keel new --stack=quarkus-cli
 ```
 
-That writes the kit into `<cwd>/.claude/`:
+You'll be asked for a base Java package, a project name, and an
+optional `origin` git remote. The result is a hexagonal Gradle
+multi-module project (`domain/contract`, `domain/core`,
+`infrastructure/cli`), a Quarkus picocli entrypoint with a sample
+subcommand and a Quarkus test, a sample secondary port (`Clock`) with
+a fake module, an initialised git repo, and the Gradle wrapper.
 
+Brownfield — layer an additional vertical onto an existing keel
+project:
+
+```sh
+keel add distribution
 ```
-.claude/
-├── CLAUDE.md              # binding spec (architecture, tests, workflow)
-├── settings.json          # permissions, env vars, hooks
-├── .keel-manifest.json    # tracks which files keel owns
-├── agents/                # adr, learn, pr-reviewer, tdd-guardian
-├── commands/              # /commit, /sync, /diff-review, /docs-check
-├── conventions/           # languages.json — per-language toolchain matrix
-├── hooks/                 # format-on-edit, pre-commit-verify, …
-└── skills/                # actionable runbooks for the chosen stack —
-                           # build, test, run, format, troubleshoot
-```
 
-Skill content is contextualised to the stack you pick at install time.
-Pick `java-quarkus` and the runbooks describe `./gradlew quarkusDev`,
-GraalVM native packaging, ArchUnit/Pitest invocations; pick another
-stack later and the verbs stay, the body changes.
-
-Commit the directory. Open the project in Claude Code. Done — Claude now
-operates under the keel conventions.
+The `distribution` vertical adds GitHub Actions workflows that
+cross-compile the CLI to native binaries via GraalVM and publish them
+to a GitHub Release on tag push.
 
 ---
 
 ## CLI
 
-| Command                                 | What it does                                                                                                                                                                                                                  |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `keel install`                          | Greenfield install: asks language → framework → native?, runs an env preflight, lays down `.claude/` plus a runnable walking-skeleton. Refuses if a manifest already exists or the cwd is non-empty (anything beyond `.git`). |
-| `keel install --force`                  | Override the existing-manifest / brownfield refusals. Overwrites kit-owned files.                                                                                                                                             |
-| `keel install --dry-run`                | Print every file the install would create. Writes nothing; no network I/O.                                                                                                                                                    |
-| `keel update`                           | Upgrade an existing install to the latest kit version. Prompts on conflict.                                                                                                                                                   |
-| `keel update --yes`                     | Non-interactive update. User-modified files are kept; the rest is upgraded silently.                                                                                                                                          |
-| `keel update --dry-run`                 | Print the update plan. Writes nothing.                                                                                                                                                                                        |
-| `keel doctor`                           | Audit `<cwd>/.claude/` for drift (missing, modified, foreign files). Non-zero on issue.                                                                                                                                       |
-| `keel generate <schematic>` (alias `g`) | Run a registered schematic. See `Schematics` below.                                                                                                                                                                           |
+| Command                  | What it does                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `keel new --stack=<id>`  | Bootstrap a greenfield project from a stack preset. Today: `quarkus-cli`.                           |
+| `keel new ... --yes`     | Non-interactive — use defaults for unanswered questions.                                            |
+| `keel new ... --dry-run` | Print the plan without writing any file.                                                            |
+| `keel new ... --set k=v` | Preset an answer as `adapterId:questionId=value` (repeatable).                                      |
+| `keel add <vertical>`    | Install a vertical onto an existing keel project. Today: `vcs`, `walking-skeleton`, `distribution`. |
+| `keel add ... --yes`     | Non-interactive.                                                                                    |
+| `keel add ... --dry-run` | Print the plan; write nothing.                                                                      |
+| `keel add ... --set k=v` | Preset an answer (same shape as `keel new`).                                                        |
 
-All commands operate on the current working directory's `.claude/`.
-There is no `--global` flag and no path under `$HOME` is ever touched.
-
-### What `keel install` does
-
-Greenfield-only in this release. The flow:
-
-1. **Detect** — refuses unless the cwd is empty or only contains `.git`.
-2. **Pick a stack** — progressive prompts: language, framework, native
-   packaging? Currently shipped: **Java → Quarkus 3.33 LTS / Gradle 9.4 /
-   Java 25**, with optional GraalVM CE 25 native packaging. Adding a
-   stack means adding a profile in `src/installer/profile.ts`; no other
-   call site changes.
-3. **Env preflight** — `git` is required (fatal if missing); the
-   Quarkus stack additionally checks for a JDK on PATH at major ≥ 25
-   (warning if absent or older — Gradle toolchains still bail out on
-   first build); native opt-in adds a check for GraalVM's
-   `native-image` (warning).
-4. **Compose** — runs `claude-core` (universal scaffold under
-   `.claude/`), then `claude-<framework>` (stack-tailored runbook
-   skills + a sentinel-marked CLAUDE.md addendum), then
-   `walking-skeleton` (the project itself, at the repo root). Files
-   under `.claude/` are tracked in the manifest; the walking-skeleton
-   output is your project code from the moment it lands.
-
-Brownfield-aware install (running on an existing project) is on the
-roadmap.
-
-### Updates and conflicts
-
-`keel update` does a three-way merge between (a) what was shipped at
-your last install, (b) the file currently on disk, and (c) what the new
-kit ships:
-
-- File unchanged since install → silently upgraded to the new version.
-- File you've edited and the kit also changed → conflict. Interactively
-  you get **keep / overwrite / show diff**; with `--yes` your version is
-  kept (safe default).
-- File you've edited but the kit did not change → kept as-is.
-- File previously shipped, no longer shipped, untouched by you → removed.
-- File previously shipped, no longer shipped, edited by you → kept,
-  un-tracked, with a warning.
-
-The manifest (`<project>/.claude/.keel-manifest.json`) records both the
-hash that was shipped and the hash currently on disk for every kit-owned
-file, which is what makes the three-way reconciliation possible. Don't
-hand-edit it.
-
-### Schematics
-
-`keel generate <name>` (alias `keel g`) runs a registered schematic.
-Currently shipped:
-
-- `claude-core` — the universal Claude scaffold (`CLAUDE.md`,
-  `settings.json`, hooks, commands, agents, conventions) into
-  `<project>/.claude/`. Runs unconditionally as the first step of
-  `keel install`; can also be re-run standalone.
-- `claude-quarkus` — Quarkus-tailored runbook skills (`build`, `test`,
-  `run`, `format`, `troubleshoot`) plus a sentinel-marked addendum
-  appended to `CLAUDE.md` describing the project layout, default
-  endpoints, and a quick command reference. Idempotent.
-- `port` — secondary port + fake module + contract test (4 files).
-- `scenario` — Scenario + Factory + Test triad in the domain test tree.
-- `walking-skeleton` — multi-module Gradle shell, kernel + contract +
-  core split, IaC stub, composes `port` for a starter secondary port.
-- `git-init`, `gradle-wrapper`, `executable-rest`, `iac-cloudrun`,
-  `ci-github` — supporting fragments. `gradle-wrapper` downloads the
-  official `gradle-<v>-wrapper.jar` from services.gradle.org and
-  verifies it against the published `.sha256` sidecar (no committed
-  binary in the repo); the walking-skeleton ships Java 25 + Gradle
-  9.4.1 + Quarkus 3.33.1 LTS by default.
-
-Pass parameters with `--set k=v` (repeatable). Use `--dry-run` to preview.
+All commands operate on the current working directory. There is no
+`--global` flag and no path under `$HOME` is ever touched.
 
 ---
 
-## What ships in the kit
+## Composition model
 
-### `CLAUDE.md` — the binding spec
+A keel project is composed from three primitives:
 
-Hexagonal architecture (three-module DAG: `kernel ← contract ← core`),
-Command/Query + Mediator, fakes-not-mocks tests with Scenario + Factory,
-walking skeleton first, OpenTofu IaC, trunk-based + XP, public-API docs.
-Source of truth: [`assets/project/CLAUDE.md`](assets/project/CLAUDE.md).
+- **Tags.** Flat strings with hierarchical-dot naming —
+  `lang.java`, `framework.quarkus`, `arch.cli`, `pkg.gradle`,
+  `runtime.graalvm-native`, `arch.hexagonal`. Tags are facts about
+  the project, captured in the manifest at install time and grown by
+  adapters that promote new capabilities (via `tagsAdd`).
+- **Adapters.** A single composable unit. Each adapter declares the
+  tags it requires and excludes (its `predicate`), the dimensions of
+  its parent vertical that it covers, any user choice points
+  (`questions`), ordering hints (`after`), and a `contribute()`
+  function that returns files, patches, deferred actions, agentic
+  bundles, and tags to add.
+- **Verticals.** Bundles of adapters under one umbrella
+  (`vcs`, `walking-skeleton`, `distribution`). The resolver verifies
+  that every entry in `vertical.dimensions` is covered by at least
+  one matching adapter; if a dimension is uncovered after predicate
+  filtering, install hard-fails with a clear message naming the gap.
 
-### `settings.json` — permissions, env, hooks
-
-- **Permissions**: pre-allows the toolchains keel knows about (git
-  read-only, pnpm/npm, Gradle, Cargo, Go, OpenTofu, rg/fd/tree, GitHub
-  MCP read tools); ask-lists destructive operations (`git push`,
-  `git reset`, `tofu apply`, GitHub MCP write tools); denies force-push,
-  `git reset --hard`, `sudo`, `rm -rf /`.
-- **Env**: `KEEL_ENFORCE_HEXAGONAL`, `KEEL_ENFORCE_TRUNK_BASED`,
-  `KEEL_ENFORCE_PUBLIC_API_DOCS`.
-- **Hooks**: `PostToolUse` formats files on every edit; `PreToolUse`
-  runs typecheck/test/docs-check before `git commit`; `SessionStart`
-  prints branch and dirty state; `Stop` reminds about commit discipline.
-
-### Skills (on-demand)
-
-Loaded by Claude Code only when relevant: `hexagonal-review`,
-`mediator-pattern`, `test-scenario-pattern`, `walking-skeleton-guide`,
-`iac-opentofu`, `trunk-based-xp`, `public-api-docs`.
-
-### Agents
-
-`tdd-guardian`, `pr-reviewer`, `learn`, `adr`. Adapted from
-[`citypaul/.dotfiles`](https://github.com/citypaul/.dotfiles) (MIT) — see
-[`THIRD_PARTY_LICENSES/`](./THIRD_PARTY_LICENSES/) for provenance.
-
-### Slash commands
-
-`/commit`, `/sync`, `/diff-review`, `/docs-check`.
-
-### Language conventions
-
-`conventions/languages.json` is the canonical per-language toolchain
-matrix (formatter, linter, typecheck, test, mutation, doc-comment style)
-that the hooks, agents, and slash commands consult. Edit it to teach the
-kit about a language it doesn't yet know, or to override defaults for
-your project.
+A **stack preset** (`keel new --stack=<id>`) is sugar over a list of
+tags + verticals — pick `quarkus-cli` and the engine seeds
+`lang.java`, `framework.quarkus`, `pkg.gradle`, `arch.cli`,
+`arch.hexagonal`, then composes the `vcs` and `walking-skeleton`
+verticals. Adding a stack is a couple of lines in
+`src/composition/stacks.ts`.
 
 ---
 
-## Customizing your install
+## Verticals shipped
 
-Anything under `.claude/` is yours to edit. The next `keel update`
-detects the edit (via the SHA recorded in the manifest) and:
-
-- if the kit hasn't changed that file, leaves your version alone;
-- if the kit has changed it, treats it as a conflict and asks (or keeps
-  your version, with `--yes`).
-
-Deleting a kit-tracked file is **not** a way to opt out of it: on the
-next `keel update`, keel sees the file is missing and reinstalls it
-(it's still a shipped file). To genuinely drop a shipped file, the
-kit itself has to stop shipping it; once that happens, an unmodified
-local copy is removed by `update`, and a modified local copy is kept
-but un-tracked.
-
-To go further off-piste, add your own files alongside the kit's. Files
-keel has never installed are untouched by `update` and reported as
-`foreign` by `doctor` (non-zero exit) when they sit inside a managed
-directory (`hooks/`, `commands/`, `skills/`, `agents/`, `conventions/`).
-Put your own files outside those directories — anywhere else under
-`.claude/` — to avoid that warning.
+- **`vcs`** — version control bootstrap. Initialises a git repo (with
+  the requested default branch) and optionally registers an `origin`
+  remote. Sticky answers, so subsequent runs don't re-ask.
+- **`walking-skeleton`** — the thinnest end-to-end runnable project
+  for the chosen stack. Today: a Quarkus picocli CLI on Gradle in a
+  hexagonal layout, plus a sample secondary port with a fake module,
+  plus the Gradle wrapper. Requires `gradle` on PATH (the wrapper is
+  generated via the canonical `gradle wrapper` task, not committed
+  as a binary).
+- **`distribution`** — how the project ships. Today: native CLI
+  binaries via GraalVM, cross-compiled in a GitHub Actions matrix
+  (linux-amd64, linux-arm64, darwin-arm64) and uploaded to a GitHub
+  Release on tag push. Promotes `runtime.graalvm-native` so future
+  verticals can key off it.
 
 ---
 
@@ -255,17 +157,23 @@ Repository layout:
 
 ```
 src/
-  cli/           # commander entry points
-  engine/        # schematics engine (Tree, Context, templates)
-  installer/     # install / update / doctor / plan
-  manifest/      # .keel-manifest.json read/write
-  schematics/    # port, scenario, walking-skeleton, …
-  util/
+  cli/                    # commander entry points (`new`, `add`)
+  composition/            # the engine: predicates, resolver, answers,
+                          # apply, install, render, actions, stacks,
+                          # types, util
+  composition/adapters/   # git-init, quarkus-cli-bootstrap,
+                          # sample-port-fake, gradle-wrapper,
+                          # quarkus-cli-native
+  composition/verticals/  # vcs, walking-skeleton, distribution,
+                          # index (registry)
+  engine/                 # in-memory Tree (used by composition)
+  installer/              # new.ts, add.ts
+  manifest/               # schema-v2.ts, store-v2.ts
+  util/                   # log, hash, paths
 assets/
-  project/       # → <project>/.claude/ (CLAUDE.md, settings, hooks,
-                 #   commands, agents, skills, conventions)
-  schematics/    # schematic templates (ejs)
-tests/           # vitest (Scenario + Factory + fakes)
+  composition/            # adapter template trees (ejs)
+tests/
+  composition/            # vitest (Scenario + Factory + fakes)
 ```
 
 Conventions for contributing to keel itself are in the root
