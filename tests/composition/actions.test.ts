@@ -1,0 +1,90 @@
+import { describe, expect, it } from 'vitest';
+import { ActionError, runActions } from '../../src/composition/actions.js';
+import type { Action } from '../../src/composition/types.js';
+
+const silent = {
+  info: () => {},
+  success: () => {},
+  warn: () => {},
+  error: () => {},
+  debug: () => {},
+};
+
+const recordingLogger = (): {
+  logger: typeof silent;
+  lines: string[];
+} => {
+  const lines: string[] = [];
+  return {
+    logger: {
+      info: (m: string) => lines.push(`info ${m}`),
+      success: (m: string) => lines.push(`ok ${m}`),
+      warn: (m: string) => lines.push(`warn ${m}`),
+      error: (m: string) => lines.push(`err ${m}`),
+      debug: () => {},
+    },
+    lines,
+  };
+};
+
+const action = (id: string, run: () => Promise<void>): Action => ({
+  id,
+  description: id,
+  run,
+});
+
+describe('runActions', () => {
+  it('runs every action in order when not dry-run', async () => {
+    const order: string[] = [];
+    const actions: Action[] = [
+      action('a', async () => {
+        order.push('a');
+      }),
+      action('b', async () => {
+        order.push('b');
+      }),
+    ];
+    await runActions({ actions, cwd: '/tmp', logger: silent, dryRun: false });
+    expect(order).toEqual(['a', 'b']);
+  });
+
+  it('skips action.run in dry-run and logs the description', async () => {
+    const { logger, lines } = recordingLogger();
+    let ran = false;
+    const actions: Action[] = [
+      action('a', async () => {
+        ran = true;
+      }),
+    ];
+    await runActions({ actions, cwd: '/tmp', logger, dryRun: true });
+    expect(ran).toBe(false);
+    expect(lines).toEqual(['info would: a']);
+  });
+
+  it('wraps thrown errors in ActionError with the offending id', async () => {
+    const actions: Action[] = [
+      action('boom', async () => {
+        throw new Error('kaboom');
+      }),
+    ];
+    const promise = runActions({ actions, cwd: '/tmp', logger: silent, dryRun: false });
+    await expect(promise).rejects.toBeInstanceOf(ActionError);
+    await expect(promise).rejects.toMatchObject({ actionId: 'boom' });
+  });
+
+  it('stops after the first failure — subsequent actions do not run', async () => {
+    let bRan = false;
+    const actions: Action[] = [
+      action('a', async () => {
+        throw new Error('nope');
+      }),
+      action('b', async () => {
+        bRan = true;
+      }),
+    ];
+    await expect(
+      runActions({ actions, cwd: '/tmp', logger: silent, dryRun: false }),
+    ).rejects.toBeInstanceOf(ActionError);
+    expect(bRan).toBe(false);
+  });
+});

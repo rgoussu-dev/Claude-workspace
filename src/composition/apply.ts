@@ -22,7 +22,16 @@
  * `tree.commit()` is the caller's responsibility.
  */
 
-import type { Adapter, AgenticBundle, Contribution, Ctx, ManifestV2, Tag, Tree } from './types.js';
+import type {
+  Action,
+  Adapter,
+  AgenticBundle,
+  Contribution,
+  Ctx,
+  ManifestV2,
+  Tag,
+  Tree,
+} from './types.js';
 import type { Logger } from '../util/log.js';
 
 /** Per-adapter answer map: questionId → value. */
@@ -34,6 +43,13 @@ export interface ApplyResult {
   readonly tagsAdded: readonly Tag[];
   /** Per-adapter agentic registrations, keyed by adapter id. */
   readonly agentic: Readonly<Record<string, AgenticBundle>>;
+  /**
+   * Actions emitted by adapters, in the order their owning adapters
+   * resolved, and within an adapter in declaration order. The applier
+   * does NOT execute them; pass to `runActions` after
+   * `tree.commit()`.
+   */
+  readonly actions: readonly Action[];
 }
 
 /**
@@ -68,6 +84,7 @@ export interface ApplyInputs {
 export async function applyContributions(inputs: ApplyInputs): Promise<ApplyResult> {
   const tagsAdded = new Set<Tag>();
   const agentic: Record<string, AgenticBundle> = {};
+  const actions: Action[] = [];
 
   for (const adapter of inputs.adapters) {
     const ctx = makeCtx(adapter, inputs);
@@ -75,9 +92,10 @@ export async function applyContributions(inputs: ApplyInputs): Promise<ApplyResu
     applyOne(adapter, contribution, inputs.tree);
     for (const t of contribution.tagsAdd ?? []) tagsAdded.add(t);
     if (contribution.agentic) agentic[adapter.id] = contribution.agentic;
+    for (const a of contribution.actions ?? []) actions.push(a);
   }
 
-  return { tagsAdded: [...tagsAdded], agentic };
+  return { tagsAdded: [...tagsAdded], agentic, actions };
 }
 
 function makeCtx(adapter: Adapter, inputs: ApplyInputs): Ctx {

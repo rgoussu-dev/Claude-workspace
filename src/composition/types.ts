@@ -104,6 +104,15 @@ export interface Contribution {
   readonly agentic?: AgenticBundle;
   /** Capability tags this adapter promotes into the manifest. */
   readonly tagsAdd?: readonly Tag[];
+  /**
+   * Deferred side effects: shell-outs, network calls, anything that
+   * mutates state outside the Tree. Actions are *collected* by the
+   * applier but **not executed**; the caller runs them via
+   * `runActions` after `tree.commit()`. This keeps the apply phase
+   * pure (and dry-runnable) and concentrates side effects in one
+   * place where dry-run handling is uniform.
+   */
+  readonly actions?: readonly Action[];
 }
 
 /** A whole-file write contribution. */
@@ -117,6 +126,30 @@ export interface ContributionFile {
 export interface ContributionPatch {
   readonly target: string;
   readonly apply: (existing: string) => string;
+}
+
+/**
+ * A deferred side effect emitted by an adapter — typically a shell
+ * command (e.g. `git init`, `pnpm install`) but anything async that
+ * touches state outside the Tree fits.
+ *
+ * Actions run AFTER `tree.commit()`, so they may rely on files the
+ * Tree wrote being present on disk. They run in the order their
+ * adapters resolved, and within an adapter in declaration order.
+ *
+ * `description` should read well as a single dry-run line — the
+ * runner prints it verbatim when dryRun is enabled.
+ */
+export interface Action {
+  readonly id: string;
+  readonly description: string;
+  run(env: ActionEnv): Promise<void>;
+}
+
+/** Environment passed to `Action.run`. */
+export interface ActionEnv {
+  readonly cwd: string;
+  readonly logger: Logger;
 }
 
 /**
