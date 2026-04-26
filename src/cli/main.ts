@@ -3,7 +3,9 @@ import { install } from '../installer/install.js';
 import { update } from '../installer/update.js';
 import { doctor } from '../installer/doctor.js';
 import { newProject } from '../installer/new.js';
+import { addVertical } from '../installer/add.js';
 import { listStackIds } from '../composition/stacks.js';
+import { listVerticalIds } from '../composition/verticals/index.js';
 import { logger } from '../util/log.js';
 import { buildEngine } from '../schematics/registry.js';
 import { cliPrompt } from '../engine/homegrown.js';
@@ -42,6 +44,33 @@ export async function main(argv: string[]): Promise<void> {
         await newProject({
           cwd: process.cwd(),
           stack: opts.stack,
+          answers: parseSetAnswers(opts.set),
+          interactive: !opts.yes,
+          dryRun: opts.dryRun,
+        });
+      },
+    );
+
+  program
+    .command('add <vertical>')
+    .description(
+      `Install a vertical onto an existing keel project (available: ${listVerticalIds().join(', ')}).`,
+    )
+    .option('-y, --yes', 'non-interactive — use defaults for unanswered questions', false)
+    .option('--dry-run', 'print the plan without writing any file', false)
+    .option(
+      '--set <kv...>',
+      'preset an answer as adapterId:questionId=value (repeatable)',
+      [] as string[],
+    )
+    .action(
+      async (
+        vertical: string,
+        opts: { yes: boolean; dryRun: boolean; set: string[] },
+      ): Promise<void> => {
+        await addVertical({
+          cwd: process.cwd(),
+          vertical,
           answers: parseSetAnswers(opts.set),
           interactive: !opts.yes,
           dryRun: opts.dryRun,
