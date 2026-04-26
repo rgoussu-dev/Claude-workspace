@@ -16,6 +16,17 @@ const DEFAULT_GRADLE_VERSION = '9.4.1';
 const GRADLE_VERSION_PATTERN = /^\d+\.\d+(\.\d+)?(-[A-Za-z0-9.-]+)?$/;
 
 /**
+ * Marker payload written for the wrapper jar in dry-run. Starts with the
+ * ZIP local-file-header signature (`PK\x03\x04`) so any consumer sniffing
+ * the header sees a syntactically valid placeholder; the trailing ASCII
+ * makes it easy to recognise if it ever reaches disk by accident.
+ */
+const DRY_RUN_PLACEHOLDER_JAR = Buffer.concat([
+  Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+  Buffer.from(' keel: dry-run placeholder — real jar fetched on commit '),
+]);
+
+/**
  * Emits a complete Gradle Wrapper at the project root so the generated
  * skeleton is runnable without a system-installed Gradle:
  *
@@ -33,10 +44,10 @@ const GRADLE_VERSION_PATTERN = /^\d+\.\d+(\.\d+)?(-[A-Za-z0-9.-]+)?$/;
  *     `java` is supported.
  *
  * Composition: invoked by the walking-skeleton schematic; can also run
- * standalone via `keel generate gradle-wrapper`. The download is
- * unconditional (not gated on dryRun) so the planned-changes output
- * accurately reflects the final tree; the engine itself avoids touching
- * disk on dry-run.
+ * standalone via `keel generate gradle-wrapper`. The network download
+ * is skipped on dry-run (consistent with side-effecting siblings like
+ * `git-init`); a placeholder buffer is written into the tree so the
+ * planned-changes output still surfaces the jar path.
  */
 export const gradleWrapperSchematic: Schematic = {
   name: 'gradle-wrapper',
@@ -69,9 +80,16 @@ export const gradleWrapperSchematic: Schematic = {
       vars.language,
     );
     await renderTemplate(tree, templateRoot, '', vars as unknown as Record<string, unknown>);
-    const jar = await download.downloadWrapperJar(vars.gradleVersion);
-    tree.write('gradle/wrapper/gradle-wrapper.jar', jar);
-    ctx.logger.info(`gradle wrapper ${vars.gradleVersion} emitted.`);
+    if (ctx.dryRun) {
+      tree.write('gradle/wrapper/gradle-wrapper.jar', DRY_RUN_PLACEHOLDER_JAR);
+      ctx.logger.info(
+        `gradle wrapper ${vars.gradleVersion} planned (jar will be downloaded on commit).`,
+      );
+    } else {
+      const jar = await download.downloadWrapperJar(vars.gradleVersion);
+      tree.write('gradle/wrapper/gradle-wrapper.jar', jar);
+      ctx.logger.info(`gradle wrapper ${vars.gradleVersion} emitted.`);
+    }
   },
 };
 

@@ -144,4 +144,21 @@ describe('gradle-wrapper schematic', () => {
       ),
     ).rejects.toThrow(/sha256 mismatch/);
   });
+
+  it('does not perform any network I/O on dry-run', async () => {
+    const spy = vi.spyOn(download, 'downloadWrapperJar').mockResolvedValue(FAKE_JAR);
+    const engine = new HomegrownEngine();
+    engine.register(gradleWrapperSchematic);
+
+    await engine.run(
+      'gradle-wrapper',
+      {},
+      { logger, cwd: workDir, prompt: cliPrompt, invoke: async () => {}, dryRun: false },
+      { dryRun: true },
+    );
+
+    expect(spy).not.toHaveBeenCalled();
+    // Engine drops the dry-run tree without committing — nothing on disk.
+    expect(existsSync(path.join(workDir, 'gradle/wrapper/gradle-wrapper.jar'))).toBe(false);
+  });
 });
