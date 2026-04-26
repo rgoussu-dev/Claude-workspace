@@ -18,12 +18,17 @@ export interface Paths {
 }
 
 /**
- * The single asset kind shipped with the composition engine. Legacy
- * `'schematics'` was retired alongside the v0.3 installers; if a
- * future split warrants a second asset root (e.g. agentic bundles
- * shipped separately), extend this union.
+ * Asset kinds shipped with the package.
+ *
+ *   - `'composition'` — adapter template trees rendered into the
+ *     project; one directory per `<vertical>/<adapter>/`.
+ *   - `'project'` — single source of truth for the binding spec
+ *     (`CLAUDE.md`) the walking-skeleton's `claude-core` adapter
+ *     emits into `<project>/.claude/`. Lives outside `composition/`
+ *     so contributors edit one canonical file that's both the kit's
+ *     own dogfood reference and the shipped artifact.
  */
-export type AssetKind = 'composition';
+export type AssetKind = 'composition' | 'project';
 
 const __filename = fileURLToPath(import.meta.url);
 const packageRoot = path.resolve(path.dirname(__filename), '..', '..');

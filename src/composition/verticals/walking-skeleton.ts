@@ -8,6 +8,7 @@
  * hexagonal niceties wherever they apply.
  */
 
+import { claudeCoreAdapter } from '../adapters/claude-core.js';
 import { gradleWrapperAdapter } from '../adapters/gradle-wrapper.js';
 import { quarkusCliBootstrapAdapter } from '../adapters/quarkus-cli-bootstrap.js';
 import { samplePortFakeAdapter } from '../adapters/sample-port-fake.js';
@@ -16,6 +17,11 @@ import type { Vertical } from '../types.js';
 export const walkingSkeletonVertical: Vertical = {
   id: 'walking-skeleton',
   description: 'Greenfield project skeleton with a runnable end-to-end slice.',
-  dimensions: ['entrypoint', 'port-example', 'build-tool'],
-  adapters: [quarkusCliBootstrapAdapter, samplePortFakeAdapter, gradleWrapperAdapter],
+  dimensions: ['entrypoint', 'port-example', 'build-tool', 'agentic-baseline'],
+  adapters: [
+    quarkusCliBootstrapAdapter,
+    samplePortFakeAdapter,
+    gradleWrapperAdapter,
+    claudeCoreAdapter,
+  ],
 };

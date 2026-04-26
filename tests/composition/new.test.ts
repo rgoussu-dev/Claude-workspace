@@ -92,6 +92,10 @@ describe('newProject (keel new)', () => {
       ),
     ).toBe(true);
 
+    // Binding spec landed under .claude/.
+    const claudeMd = await fs.readFile(path.join(cwd, '.claude/CLAUDE.md'), 'utf8');
+    expect(claudeMd).toContain('Universal engineering conventions (keel)');
+
     // Action ran: git repo exists, branch is main.
     expect(await fs.pathExists(path.join(cwd, '.git'))).toBe(true);
     const branch = spawnSync('git', ['symbolic-ref', '--short', 'HEAD'], {

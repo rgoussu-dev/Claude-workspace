@@ -47,6 +47,14 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   alongside the v1 file-tracking entries. Reads are version-aware: a
   v1 manifest on disk migrates in memory on first read, and writes
   always emit v2.
+- **`walking-skeleton/claude-core` adapter.** Emits the universal
+  binding spec (`assets/project/CLAUDE.md`) into
+  `<project>/.claude/CLAUDE.md` so every keel-scaffolded project
+  carries the conventions Claude Code reads at session start. Covers
+  a new `agentic-baseline` dimension on the walking-skeleton vertical,
+  predicate empty so it fires unconditionally. Reads from the same
+  canonical file contributors edit, so there's exactly one source of
+  truth for the spec.
 
 ### Removed
 

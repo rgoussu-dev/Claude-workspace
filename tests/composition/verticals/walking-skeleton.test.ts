@@ -182,6 +182,13 @@ describe('walking-skeleton vertical (Quarkus CLI)', () => {
     expect(helloCmd).toContain('import com.acme.tooling.core.greet.GreetCommand;');
   });
 
+  it('emits the binding spec at .claude/CLAUDE.md', async () => {
+    const { tree, cwd } = await installWith(baseTags('arch.cli'));
+    cwds.push(cwd);
+    const claudeMd = tree.read('.claude/CLAUDE.md')?.toString() ?? '';
+    expect(claudeMd).toContain('Universal engineering conventions (keel)');
+  });
+
   it('emits a deferred gradle wrapper action that runs after the bootstrap', async () => {
     const { result, cwd } = await installWith(baseTags('arch.cli'));
     cwds.push(cwd);

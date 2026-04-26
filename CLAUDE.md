@@ -17,11 +17,10 @@ spec are read by Claude Code from the repo itself.
 The universal engineering conventions are defined in
 [`assets/project/CLAUDE.md`](assets/project/CLAUDE.md). That file is
 the source of truth for the conventions every keel-scaffolded project
-should follow. Today nothing emits it automatically — a `claude-core`
-adapter that lays it down at `<project>/.claude/CLAUDE.md` (and a
-stack-specific addendum on top) is on the roadmap; the file lives in
-the repo so the walking-skeleton vertical and contributors can dogfood
-the spec while the adapter is built.
+should follow, and the `walking-skeleton/claude-core` adapter emits
+it verbatim into `<project>/.claude/CLAUDE.md` whenever a project is
+scaffolded. Stack-specific addenda (e.g. a Quarkus runbook appended
+under a sentinel marker) are a roadmap item.
 
 **keel dogfoods those conventions.** Any change to this repo must conform to
 that document:
