@@ -224,4 +224,61 @@ describe('update()', () => {
       /no manifest/,
     );
   });
+
+  // Regression: prior to this guard, files installed by stack-specific
+  // schematics (`claude-quarkus/...`, `walking-skeleton/...`) were
+  // tracked in the manifest but absent from `update`'s plan (which only
+  // walks `claudeCoreTemplates()`). The orphan loop then deleted them
+  // from disk and dropped them from the manifest on the next update.
+  it('preserves files and entries from non-claude-core schematics through orphan handling', async () => {
+    const skillContent = '# build\n./gradlew build\n';
+    const skillPath = 'skills/build/SKILL.md';
+    writeTarget(skillPath, skillContent);
+    writeManifestFile(targetRoot, {
+      kitVersion: '0.0.0',
+      installedAt: '2000-01-01T00:00:00.000Z',
+      updatedAt: '2000-01-01T00:00:00.000Z',
+      entries: [
+        {
+          source: 'claude-quarkus/skills/build/SKILL.md',
+          target: skillPath,
+          sha256Shipped: sha256(skillContent),
+          sha256Current: sha256(skillContent),
+          installedAt: '2000-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    // No assets shipped → claude-core has nothing to plan; the skill
+    // would otherwise be classified as an unmodified orphan and removed.
+
+    await update({ cwd: projectCwd, dryRun: false, nonInteractive: true });
+
+    expect(existsSync(path.join(targetRoot, skillPath))).toBe(true);
+    const m = JSON.parse(
+      readFileSync(path.join(targetRoot, '.keel-manifest.json'), 'utf8'),
+    ) as Manifest;
+    expect(m.entries.find((e) => e.target === skillPath)).toMatchObject({
+      source: 'claude-quarkus/skills/build/SKILL.md',
+      sha256Shipped: sha256(skillContent),
+    });
+  });
+
+  it('stamps the new claude-core source prefix on entries it (re)writes', async () => {
+    const newContent = 'fresh\n';
+    writeAsset('z.txt', newContent);
+    writeManifestFile(targetRoot, {
+      kitVersion: '0.0.0',
+      installedAt: '2000-01-01T00:00:00.000Z',
+      updatedAt: '2000-01-01T00:00:00.000Z',
+      entries: [],
+    });
+
+    await update({ cwd: projectCwd, dryRun: false, nonInteractive: true });
+
+    const m = JSON.parse(
+      readFileSync(path.join(targetRoot, '.keel-manifest.json'), 'utf8'),
+    ) as Manifest;
+    const entry = m.entries.find((e) => e.target === 'z.txt');
+    expect(entry?.source).toBe('claude-core/z.txt');
+  });
 });
