@@ -1,0 +1,74 @@
+/**
+ * Predicate evaluation against a tag set.
+ *
+ * The grammar is intentionally minimal: AND-of-requires +
+ * NOT-of-excludes, with optional glob suffixes. There is no OR — if a
+ * vertical needs disjunction, ship two adapters with different
+ * predicates and let the resolver pick whichever matches.
+ *
+ * Pattern rules:
+ *   - A literal tag (no `*`) matches by exact string equality.
+ *   - A pattern ending in `*` matches any tag whose prefix equals the
+ *     part before the `*` (e.g. `runtime.jvm.*` matches
+ *     `runtime.jvm.graalvm-native`). The dot is part of the literal
+ *     prefix, not a separator — `runtime.jvm.*` does NOT match
+ *     `runtime.jvm` itself; use both patterns if you need both.
+ *   - A bare `*`, a pattern starting with `*`, or a pattern with a
+ *     non-trailing `*` is rejected at validation time.
+ */
+
+import type { Predicate, Tag } from './types.js';
+
+/**
+ * Returns true iff `tagSet` satisfies `predicate`. An empty predicate
+ * (`{}` or one with empty arrays) trivially matches anything; this is
+ * useful for the always-applies adapter case (e.g. an `arch.cli`
+ * walking-skeleton bootstrap).
+ */
+export function matches(predicate: Predicate, tagSet: ReadonlySet<Tag>): boolean {
+  for (const r of predicate.requires ?? []) {
+    if (!matchesPattern(r, tagSet)) return false;
+  }
+  for (const e of predicate.excludes ?? []) {
+    if (matchesPattern(e, tagSet)) return false;
+  }
+  return true;
+}
+
+/**
+ * Returns true iff at least one tag in `tagSet` matches the pattern.
+ * Exported so adapters can sanity-check their own tag arithmetic in
+ * tests; not used by the resolver directly.
+ */
+export function matchesPattern(pattern: string, tagSet: ReadonlySet<Tag>): boolean {
+  validatePattern(pattern);
+  if (pattern.endsWith('*')) {
+    const prefix = pattern.slice(0, -1);
+    for (const tag of tagSet) {
+      if (tag.startsWith(prefix)) return true;
+    }
+    return false;
+  }
+  return tagSet.has(pattern);
+}
+
+/**
+ * Throws if a pattern is malformed. Callers should run this at
+ * adapter-registration time so typos surface before any project
+ * touches them.
+ */
+export function validatePattern(pattern: string): void {
+  if (pattern.length === 0) {
+    throw new Error('predicate pattern must not be empty');
+  }
+  if (pattern === '*') {
+    throw new Error("predicate pattern '*' is not allowed; pin at least one literal segment");
+  }
+  if (pattern.startsWith('*')) {
+    throw new Error(`predicate pattern '${pattern}' must not start with '*'`);
+  }
+  const star = pattern.indexOf('*');
+  if (star !== -1 && star !== pattern.length - 1) {
+    throw new Error(`predicate pattern '${pattern}' may only contain '*' at the end`);
+  }
+}

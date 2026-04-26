@@ -1,0 +1,134 @@
+/**
+ * Question/answer resolution.
+ *
+ * Each `Question` an adapter declares is resolved through three
+ * sources, in order:
+ *   1. Sticky memory in the manifest (`memory: 'sticky'` only).
+ *   2. The `default` field, when running non-interactively (`--yes`).
+ *   3. The user, prompted via the supplied `Prompt`.
+ *
+ * The result of resolving an adapter's full question list is split
+ * into:
+ *   - `answers` — every question's resolved value (used by
+ *     `Ctx.answer`).
+ *   - `updates` — the subset that should be persisted back to the
+ *     manifest (sticky questions whose value was newly asked).
+ *
+ * Repeat questions are never persisted; sticky questions are always
+ * persisted on first ask but not re-persisted on subsequent runs
+ * (since they're already in the manifest).
+ */
+
+import { confirm, input, select } from '@inquirer/prompts';
+import type { Adapter, Question } from './types.js';
+
+/** Operating mode for prompt resolution. */
+export type AnswerMode = 'interactive' | 'non-interactive';
+
+/**
+ * Prompt port — the answers engine never imports a terminal library
+ * directly so tests can supply a scripted fake.
+ */
+export interface Prompt {
+  ask(question: Question): Promise<string>;
+}
+
+/** Result of resolving a single question. */
+export interface AnswerResolution {
+  readonly value: string;
+  /** True when the value should be merged back into the manifest. */
+  readonly persist: boolean;
+}
+
+/**
+ * Resolves a single question against stored answers, mode, and (when
+ * interactive) the prompt port.
+ *
+ * @param stored - sticky answers previously recorded for this adapter
+ *                 (`manifest.answers[adapterId]`). Pass `{}` if none.
+ */
+export async function resolveAnswer(
+  question: Question,
+  stored: Readonly<Record<string, string>>,
+  mode: AnswerMode,
+  prompt: Prompt,
+): Promise<AnswerResolution> {
+  if (question.memory === 'sticky') {
+    const memo = stored[question.id];
+    if (memo !== undefined) return { value: memo, persist: false };
+  }
+  if (mode === 'non-interactive') {
+    validateChoice(question, question.default);
+    return { value: question.default, persist: question.memory === 'sticky' };
+  }
+  const value = await prompt.ask(question);
+  validateChoice(question, value);
+  return { value, persist: question.memory === 'sticky' };
+}
+
+/** Resolves every question of an adapter in declaration order. */
+export async function resolveAdapterAnswers(
+  adapter: Adapter,
+  storedForAdapter: Readonly<Record<string, string>>,
+  mode: AnswerMode,
+  prompt: Prompt,
+): Promise<{
+  answers: Record<string, string>;
+  updates: Record<string, string>;
+}> {
+  const answers: Record<string, string> = {};
+  const updates: Record<string, string> = {};
+  const seen = new Set<string>();
+  for (const q of adapter.questions ?? []) {
+    if (seen.has(q.id)) {
+      throw new Error(`adapter '${adapter.id}' declares duplicate question id '${q.id}'`);
+    }
+    seen.add(q.id);
+    const r = await resolveAnswer(q, storedForAdapter, mode, prompt);
+    answers[q.id] = r.value;
+    if (r.persist) updates[q.id] = r.value;
+  }
+  return { answers, updates };
+}
+
+function validateChoice(question: Question, value: string): void {
+  if (!question.choices) return;
+  const allowed = question.choices.map((c) => c.value);
+  if (!allowed.includes(value)) {
+    throw new Error(
+      `invalid value '${value}' for question '${question.id}'; choices: ${allowed.join(', ')}`,
+    );
+  }
+}
+
+/**
+ * CLI-backed prompt adapter. Picks `select` for choice questions and
+ * a free-form `input` (with the default pre-filled) otherwise.
+ *
+ * Boolean-shaped questions can be modelled as a `select` with values
+ * `'yes' | 'no'`; we don't expose a `confirm` shortcut to keep the
+ * answer alphabet uniformly stringy in the manifest.
+ */
+export const cliPrompt: Prompt = {
+  async ask(question: Question): Promise<string> {
+    if (question.choices && question.choices.length > 0) {
+      const value = await select<string>({
+        message: question.prompt,
+        default: question.default,
+        choices: question.choices.map((c) => ({
+          name: c.label,
+          value: c.value,
+          description: c.doc,
+        })),
+      });
+      return value;
+    }
+    return input({ message: question.prompt, default: question.default });
+  },
+};
+
+/**
+ * Re-export to keep `confirm` imported (some adapters may want it via
+ * `cliPrompt` extensions in the future). No-op for now beyond signal.
+ */
+export { confirm as _confirm };
