@@ -11,8 +11,11 @@
  *      Tree. Tags emitted by adapters via `tagsAdd` accumulate into
  *      the manifest snapshot the next vertical sees.
  *   5. Print the plan (file changes + pending actions).
- *   6. Unless dryRun: commit the Tree, run actions, write the
- *      manifest.
+ *   6. Unless dryRun: commit the Tree, persist the manifest, then
+ *      run the deferred actions. Persisting the manifest *before*
+ *      actions keeps the workspace recoverable if an action throws
+ *      (e.g. `gradle wrapper` with no `gradle` on PATH) — files and
+ *      manifest stay in sync.
  */
 
 import path from 'node:path';
@@ -22,13 +25,12 @@ import { logger as defaultLogger, type Logger } from '../util/log.js';
 import { paths } from '../util/paths.js';
 import { InMemoryTree } from '../engine/tree.js';
 import { installVertical } from '../composition/install.js';
-import { runActions } from '../composition/actions.js';
+import { runActions, type RunActionsInputs } from '../composition/actions.js';
 import { writeManifestV2 } from '../manifest/store-v2.js';
-import { emptyManifestV2 } from '../manifest/schema-v2.js';
+import { emptyManifestV2, MANIFEST_FILENAME } from '../manifest/schema-v2.js';
 import { cliPrompt, type Prompt } from '../composition/answers.js';
 import { getStack, listStackIds } from '../composition/stacks.js';
 import type { Action, ManifestV2 } from '../composition/types.js';
-import { MANIFEST_FILENAME } from '../manifest/schema.js';
 
 /** Inputs to {@link newProject}. */
 export interface NewInputs {
@@ -45,6 +47,12 @@ export interface NewInputs {
   readonly now?: () => string;
   /** keel version recorded into the manifest; defaults to `package.json` value. */
   readonly keelVersion?: string;
+  /**
+   * Action runner — injected so tests can stub deferred side effects
+   * that would otherwise spawn external processes (e.g. `gradle
+   * wrapper`). Defaults to the real {@link runActions}.
+   */
+  readonly runActions?: (inputs: RunActionsInputs) => Promise<void>;
 }
 
 export async function newProject(inputs: NewInputs): Promise<void> {
@@ -94,13 +102,20 @@ export async function newProject(inputs: NewInputs): Promise<void> {
   }
 
   await tree.commit();
-  await runActions({
+  // Persist the manifest BEFORE running deferred actions: actions
+  // shell out (e.g. `gradle wrapper`) and may fail on a missing
+  // tool. The tree is already on disk at this point, so a coherent
+  // manifest paired with those files is the recoverable state — the
+  // alternative leaves a populated workspace with no manifest, and
+  // a re-run hits the existing-files conflict path with no breadcrumbs.
+  await writeManifestV2(scopeRoot, manifest);
+  const runner = inputs.runActions ?? runActions;
+  await runner({
     actions: collectedActions,
     cwd: inputs.cwd,
     logger: log,
     dryRun: false,
   });
-  await writeManifestV2(scopeRoot, manifest);
   log.success(`keel new ${stack.id}: ready in ${inputs.cwd}`);
 }
 

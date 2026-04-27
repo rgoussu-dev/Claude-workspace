@@ -15,10 +15,12 @@ spec are read by Claude Code from the repo itself.
 ## 1. Binding spec
 
 The universal engineering conventions are defined in
-[`assets/schematics/claude-core/templates/CLAUDE.md`](assets/schematics/claude-core/templates/CLAUDE.md)
-— the same file the `claude-core` schematic renders into
-`<project>/.claude/CLAUDE.md` for consumers, with stack-specific
-addenda appended by `claude-<stack>` schematics on top.
+[`assets/project/CLAUDE.md`](assets/project/CLAUDE.md). That file is
+the source of truth for the conventions every keel-scaffolded project
+should follow, and the `walking-skeleton/claude-core` adapter emits
+it verbatim into `<project>/.claude/CLAUDE.md` whenever a project is
+scaffolded. Stack-specific addenda (e.g. a Quarkus runbook appended
+under a sentinel marker) are a roadmap item.
 
 **keel dogfoods those conventions.** Any change to this repo must conform to
 that document:
@@ -65,19 +67,21 @@ means…") applies unchanged.
 [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). Types
 used in this repo:
 
-| Type       | When                                         |
-| ---------- | -------------------------------------------- |
-| `feat`     | user-visible feature or new schematic        |
-| `fix`      | bug fix                                      |
-| `refactor` | internal change, no behavior change          |
-| `docs`     | README / CHANGELOG / CLAUDE.md / inline docs |
-| `test`     | test-only changes                            |
-| `chore`    | tooling, deps, housekeeping                  |
-| `ci`       | workflow / pipeline changes                  |
-| `build`    | build config, packaging, release engineering |
-| `perf`     | performance                                  |
+| Type       | When                                               |
+| ---------- | -------------------------------------------------- |
+| `feat`     | user-visible feature, new vertical, or new adapter |
+| `fix`      | bug fix                                            |
+| `refactor` | internal change, no behavior change                |
+| `docs`     | README / CHANGELOG / CLAUDE.md / inline docs       |
+| `test`     | test-only changes                                  |
+| `chore`    | tooling, deps, housekeeping                        |
+| `ci`       | workflow / pipeline changes                        |
+| `build`    | build config, packaging, release engineering       |
+| `perf`     | performance                                        |
 
-Scopes are optional but encouraged: `fix(engine): …`, `feat(schematics): …`.
+Scopes are optional but encouraged: `fix(composition): …`,
+`feat(walking-skeleton): …`, `feat(distribution): …`,
+`feat(cli): …`.
 
 One commit = one logical unit. Never mix refactor + feature + fix. Every
 commit must pass `pnpm lint && pnpm typecheck && pnpm test` on its own.
@@ -135,7 +139,9 @@ Before claiming a task done: run `pnpm lint`, `pnpm typecheck`, and
 `pnpm test`. If the environment prevents running them, say so explicitly
 rather than asserting success.
 
-The CLI entry is `bin/keel.js`, which loads `dist/cli/main.js`. Build before
+The CLI is intentionally thin: `keel new --stack=<id>` for greenfield
+bootstrap and `keel add <vertical>` for brownfield layering. The CLI
+entry is `bin/keel.js`, which loads `dist/cli/main.js`. Build before
 trying the CLI locally.
 
 ---
@@ -144,27 +150,34 @@ trying the CLI locally.
 
 ```
 src/
-  cli/           # commander entry points
-  engine/        # Tree, templates, context — the schematics engine
-  installer/     # install / update / doctor / plan / env / profile
-  manifest/      # .keel-manifest.json
-  schematics/    # claude-core, claude-quarkus, port, scenario,
-                 #   walking-skeleton, gradle-wrapper, executable-rest, …
-  util/
+  cli/                    # commander entry points (`new`, `add`)
+  composition/            # the engine: predicates, resolver, answers,
+                          # apply, install, render, actions, stacks,
+                          # types, util
+  composition/adapters/   # git-init, quarkus-cli-bootstrap,
+                          # sample-port-fake, gradle-wrapper,
+                          # quarkus-cli-native
+  composition/verticals/  # vcs, walking-skeleton, distribution,
+                          # index (registry)
+  engine/                 # in-memory Tree (used by composition)
+  installer/              # new.ts, add.ts
+  manifest/               # schema-v2.ts, store-v2.ts
+  util/                   # log, hash, paths
 assets/
-  schematics/    # schematic templates (ejs)
-                 #   claude-core/templates/      → <project>/.claude/
-                 #   claude-quarkus/templates/   → stack runbook skills
-                 #   walking-skeleton/templates/ → project skeleton
-                 #   …
-tests/           # vitest, Scenario + Factory + fakes
-bin/keel.js      # npm bin entry
+  composition/            # adapter template trees (ejs), one
+                          # directory per `<vertical>/<adapter>/`
+  project/                # binding spec (CLAUDE.md) — source of truth
+                          # for the universal engineering conventions
+tests/                    # vitest; Scenario + Factory + fakes
+  composition/            # mirrors src/composition/ test-for-test
+bin/keel.js               # npm bin entry
 ```
 
-The source tree mirrors the hexagonal spec: `engine/` is a port (Tree,
-Schematic, Context interfaces in `types.ts`) with `homegrown.ts` as the
-default adapter. Alternative adapters (Plop, Nx) would ship as separate
-packages; they do **not** go under `src/engine/`.
+The composition layer is the port. `Tree` is its substrate (the
+in-memory filesystem adapters write into); `engine/tree.ts` is the
+default adapter. Alternative Tree adapters (e.g. backed by a Yjs CRDT
+or a remote VFS) would ship as separate packages; they do **not** go
+under `src/engine/`.
 
 ---
 

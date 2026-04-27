@@ -15,6 +15,7 @@ import { ResolutionError } from '../../../src/composition/resolver.js';
 import { emptyManifestV2 } from '../../../src/manifest/schema-v2.js';
 import { InMemoryTree } from '../../../src/engine/tree.js';
 import type { Prompt } from '../../../src/composition/answers.js';
+import type { InstallVerticalResult } from '../../../src/composition/install.js';
 
 const silent = {
   info: () => {},
@@ -42,7 +43,7 @@ const baseTags = (...extra: string[]): string[] => [
 const installWith = async (
   tags: string[],
   answers?: Record<string, Record<string, string>>,
-): Promise<{ tree: InMemoryTree; cwd: string }> => {
+): Promise<{ tree: InMemoryTree; cwd: string; result: InstallVerticalResult }> => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'keel-ws-'));
   const tree = new InMemoryTree(cwd);
   const manifest = {
@@ -50,7 +51,7 @@ const installWith = async (
     tags,
     answers: answers ?? {},
   };
-  await installVertical({
+  const result = await installVertical({
     vertical: walkingSkeletonVertical,
     manifest,
     tree,
@@ -60,7 +61,7 @@ const installWith = async (
     cwd,
     now: () => '2026-04-26T12:00:00Z',
   });
-  return { tree, cwd };
+  return { tree, cwd, result };
 };
 
 let cwds: string[] = [];
@@ -179,6 +180,45 @@ describe('walking-skeleton vertical (Quarkus CLI)', () => {
         ?.toString() ?? '';
     expect(helloCmd).toContain('import com.acme.tooling.contract.Mediator;');
     expect(helloCmd).toContain('import com.acme.tooling.core.greet.GreetCommand;');
+  });
+
+  it('emits the binding spec at .claude/CLAUDE.md', async () => {
+    const { tree, cwd } = await installWith(baseTags('arch.cli'));
+    cwds.push(cwd);
+    const claudeMd = tree.read('.claude/CLAUDE.md')?.toString() ?? '';
+    expect(claudeMd).toContain('Universal engineering conventions (keel)');
+  });
+
+  it('emits a deferred gradle wrapper action that runs after the bootstrap', async () => {
+    const { result, cwd } = await installWith(baseTags('arch.cli'));
+    cwds.push(cwd);
+    const wrapperAction = result.applyResult.actions.find(
+      (a) => a.id === 'walking-skeleton/gradle-wrapper',
+    );
+    expect(wrapperAction).toBeDefined();
+    expect(wrapperAction?.description).toMatch(/^gradle wrapper --gradle-version=\d+\.\d+/);
+  });
+
+  it('hard-fails when pkg.gradle is absent (no adapter covers build-tool)', async () => {
+    const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'keel-ws-fail-gradle-'));
+    cwds.push(cwd);
+    const tree = new InMemoryTree(cwd);
+    const manifest = {
+      ...emptyManifestV2('2026-04-26T00:00:00Z', '0.4.0-alpha'),
+      tags: ['lang.java', 'runtime.jvm', 'framework.quarkus', 'arch.hexagonal', 'arch.cli'],
+    };
+    await expect(
+      installVertical({
+        vertical: walkingSkeletonVertical,
+        manifest,
+        tree,
+        mode: 'non-interactive',
+        prompt: noPrompt,
+        logger: silent,
+        cwd,
+        now: () => '2026-04-26T12:00:00Z',
+      }),
+    ).rejects.toBeInstanceOf(ResolutionError);
   });
 
   it('hard-fails when arch.cli is absent (no adapter covers entrypoint)', async () => {

@@ -1,0 +1,28 @@
+name: native-build
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: native-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: native smoke (<%= smokeTarget.target %>)
+    runs-on: <%= smokeTarget.runner %>
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: graalvm-community
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build native binary (<%= smokeTarget.target %>)
+        run: ./gradlew :infrastructure:cli:build -Dquarkus.native.enabled=true --no-daemon --stacktrace

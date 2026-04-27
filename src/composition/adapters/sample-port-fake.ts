@@ -18,7 +18,7 @@
 import path from 'node:path';
 import { paths } from '../../util/paths.js';
 import { renderTemplateFiles } from '../render.js';
-import { packageToPath } from '../../schematics/util.js';
+import { packageToPath } from '../util.js';
 import type { Adapter } from '../types.js';
 import { QUARKUS_CLI_BOOTSTRAP_ID } from './quarkus-cli-bootstrap.js';
 
