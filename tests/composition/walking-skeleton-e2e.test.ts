@@ -20,9 +20,14 @@
  * distribution mirror is required.
  *
  * Cost: first run downloads Gradle + the Quarkus BOM and is slow
- * (multiple minutes). The test is skipped automatically when
- * `gradle` or `java` is not on PATH, and can be disabled explicitly
- * with `KEEL_SKIP_E2E=1` for fast inner-loop iterations.
+ * (multiple minutes). Skip rules:
+ *   - skipped automatically when `gradle` or `java` is missing from
+ *     PATH;
+ *   - skipped on CI by default — keel's CI is a Node project gate,
+ *     not a Quarkus build farm, and the cold-cache download flakes
+ *     enough that running it on every PR isn't worth the noise;
+ *   - opt out locally with `KEEL_SKIP_E2E=1`;
+ *   - opt in on CI (or anywhere) with `KEEL_RUN_E2E=1`.
  */
 
 import path from 'node:path';
@@ -141,7 +146,11 @@ const runWithRetry = (
   return last;
 };
 
-const skipE2E = process.env.KEEL_SKIP_E2E === '1' || !onPath('gradle') || !onPath('java');
+const optedIn = process.env.KEEL_RUN_E2E === '1';
+const optedOut = process.env.KEEL_SKIP_E2E === '1';
+const onCI = process.env.CI === 'true';
+const toolingMissing = !onPath('gradle') || !onPath('java');
+const skipE2E = optedOut || toolingMissing || (onCI && !optedIn);
 
 let cwd: string;
 let gradleUserHome: string;

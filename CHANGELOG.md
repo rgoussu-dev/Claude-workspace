@@ -63,9 +63,11 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   asserting the greeting reaches stdout. Per the brief, the only
   side effect that's faked is git: `vcs/git-init` is replaced with a
   no-op; every other deferred action runs for real. Each run uses a
-  fresh `GRADLE_USER_HOME` so the scenario starts from a blank cache,
-  and the suite is skipped when `gradle` or `java` isn't on PATH (with
-  `KEEL_SKIP_E2E=1` as an explicit opt-out for fast inner-loop runs).
+  fresh `GRADLE_USER_HOME` so the scenario starts from a blank cache.
+  Skipped automatically when `gradle` or `java` is missing from PATH,
+  and on CI by default (the cold-cache Quarkus download is too heavy
+  to run on every PR); opt out locally with `KEEL_SKIP_E2E=1`, opt in
+  on CI with `KEEL_RUN_E2E=1`.
 
 ### Fixed
 
@@ -82,6 +84,13 @@ versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
   Platform". The root `build.gradle.kts` template now adds
   `testRuntimeOnly("org.junit.platform:junit-platform-launcher")` to
   every subproject.
+- **`gradle-wrapper` adapter surfaces the actual Gradle error.**
+  Gradle prints task failures (`Test of distribution url ... failed`,
+  `BUILD FAILED in Ns`, the stacktrace under `--stacktrace`) on
+  stdout, not stderr. The previous `describeFailure` only captured
+  stderr and fell back to `exit N`, leaving users with a context-free
+  message when `gradle wrapper` failed. The adapter now joins both
+  streams into the thrown error.
 
 ### Removed
 
