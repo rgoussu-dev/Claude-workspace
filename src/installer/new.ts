@@ -99,6 +99,13 @@ export async function newProject(inputs: NewInputs): Promise<void> {
   }
 
   await tree.commit();
+  // Persist the manifest BEFORE running deferred actions: actions
+  // shell out (e.g. `gradle wrapper`) and may fail on a missing
+  // tool. The tree is already on disk at this point, so a coherent
+  // manifest paired with those files is the recoverable state — the
+  // alternative leaves a populated workspace with no manifest, and
+  // a re-run hits the existing-files conflict path with no breadcrumbs.
+  await writeManifestV2(scopeRoot, manifest);
   const runner = inputs.runActions ?? runActions;
   await runner({
     actions: collectedActions,
@@ -106,7 +113,6 @@ export async function newProject(inputs: NewInputs): Promise<void> {
     logger: log,
     dryRun: false,
   });
-  await writeManifestV2(scopeRoot, manifest);
   log.success(`keel new ${stack.id}: ready in ${inputs.cwd}`);
 }
 

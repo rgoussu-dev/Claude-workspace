@@ -17,9 +17,9 @@ jobs:
         include:
 <% targets.forEach((t) => { -%>
           - target: <%= t.target %>
-            runs-on: <%= t.runner %>
+            runner: <%= t.runner %>
 <% }); -%>
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 

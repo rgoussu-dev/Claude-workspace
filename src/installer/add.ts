@@ -104,6 +104,12 @@ export async function addVertical(inputs: AddInputs): Promise<void> {
   }
 
   await tree.commit();
+  // Persist the manifest BEFORE running deferred actions — see the
+  // matching note in `newProject` for why. A failed action then leaves
+  // a coherent (files + manifest) pair on disk instead of stranding
+  // files with no manifest entry, and the second run of `keel add`
+  // would (correctly) refuse the duplicate-vertical install.
+  await writeManifestV2(scopeRoot, result.manifest);
   const runner = inputs.runActions ?? runActions;
   await runner({
     actions: result.applyResult.actions,
@@ -111,7 +117,6 @@ export async function addVertical(inputs: AddInputs): Promise<void> {
     logger: log,
     dryRun: false,
   });
-  await writeManifestV2(scopeRoot, result.manifest);
   log.success(`keel add ${vertical.id}: ready`);
 }
 

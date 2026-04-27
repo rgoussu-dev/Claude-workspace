@@ -91,11 +91,15 @@ describe('distribution vertical (Quarkus CLI native)', () => {
     const release = tree.read('.github/workflows/release.yml')?.toString() ?? '';
     expect(release).toContain('name: release');
     expect(release).toContain('- target: linux-amd64');
-    expect(release).toContain('runs-on: ubuntu-latest');
+    expect(release).toContain('runner: ubuntu-latest');
     expect(release).toContain('- target: linux-arm64');
-    expect(release).toContain('runs-on: ubuntu-22.04-arm');
+    expect(release).toContain('runner: ubuntu-22.04-arm');
     expect(release).toContain('- target: darwin-arm64');
-    expect(release).toContain('runs-on: macos-14');
+    expect(release).toContain('runner: macos-14');
+    // The matrix field is `runner` (not `runs-on`) because GitHub
+    // Actions' expression parser treats the hyphen in `matrix.runs-on`
+    // as subtraction; the dispatch reads `${{ matrix.runner }}`.
+    expect(release).toContain('runs-on: ${{ matrix.runner }}');
     expect(release).toContain('shipper-${{ matrix.target }}');
 
     const smoke = tree.read('.github/workflows/native-build.yml')?.toString() ?? '';
